@@ -1,0 +1,65 @@
+import sys
+sys.path.append(r'../../')
+import os
+import time
+import networkx as nx
+import matplotlib.pyplot as plt
+import numpy as np
+import h5py
+from datetime import datetime
+
+from qiskit.optimization.applications.ising import max_cut
+from qiskit.optimization.applications.ising.common import sample_most_likely
+from qiskit.aqua import QuantumInstance, aqua_globals
+from qiskit.algorithms.optimizers import COBYLA
+from qiskit.aqua.algorithms import QAOA
+from qiskit import BasicAer, Aer
+
+from applications import MaxCut
+
+
+
+
+nd = 3
+
+p = 1
+
+# num_nodes_list = np.array([4,6,8,10,12, 14])
+num_nodes_list = np.array([4,6])
+time_qiskit = np.zeros_like(num_nodes_list, dtype='float')
+
+# nx.draw_networkx(mxt.graph)
+# plt.show()
+
+cy_ind = 0
+for num_nodes in num_nodes_list:
+    mxt = MaxCut(node_num=num_nodes, node_degree=nd)
+    mc_mat = nx.adjacency_matrix(mxt.graph).A
+    qubit_op, offset = max_cut.get_operator(mc_mat)  #
+    aqua_globals.random_seed = 10598
+    qaoa = QAOA(qubit_op, optimizer=COBYLA(maxiter=30), p=1,
+            quantum_instance=Aer.get_backend('statevector_simulator'))
+    st = time.time()
+    result = qaoa.compute_minimum_eigenvalue()
+    ed = time.time()
+    time_qiskit[cy_ind] = ed - st
+    cy_ind += 1
+
+dirs = '../data'
+if not os.path.exists(dirs):
+    os.makedirs(dirs)
+if len(num_nodes_list) == 1:
+    filename = '../data/qiskit_p%i_nd%i_nodesnum%i.h5' % (p, nd, num_nodes_list[0])
+else:
+    filename = '../data/qiskit_p%i_nd%i.h5' % (p, nd)
+    data = h5py.File(filename, 'w')
+
+    # res_x = sample_most_likely(result.eigenstate)
+data['time_qiskit'] = time_qiskit
+data['p'] = p
+data['num_nodes_list'] = num_nodes_list
+data['nd'] = nd
+# print("result by QAOA: ", result)
+# print("run time by QAOA: ", ed - st)
+# print("max cut value by QAOA: ", max_cut.max_cut_value(res_x, mc_mat))
+# print("max cut solution by QAOA: ", res_x)
