@@ -11,6 +11,20 @@ More example codes and tutorials can be found in the tests folder here on GitHub
 
 Also, make sure to check out the detailed code documentation.
 
+# Examples
+```python
+frome core import QCover
+from backends import CircuitByQulacs
+from optimizers import COBYLA, Fourier
+from networkx import Graph
+
+nodes, edges = QCover.generate_graph_data(6, 9)
+g = QCover.generate_weighted_graph(nodes, edges)
+qulacs_bc = CircuitByQulacs()
+qc = QCover(g, p, optimizer=optc, backend=qulacs_bc)
+res = qc.run(is_parallel=True)
+```
+
 
 # How to contribute
 For information on how to contribute, please send an e-mail to members of developer of this project.
