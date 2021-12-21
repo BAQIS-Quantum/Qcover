@@ -13,7 +13,7 @@ Also, make sure to check out the detailed code documentation.
 
 # Examples
 ```python
-frome core import QCover
+from core import QCover
 from backends import CircuitByQulacs
 from optimizers import COBYLA, Fourier
 from networkx import Graph
@@ -21,7 +21,7 @@ from networkx import Graph
 nodes, edges = QCover.generate_graph_data(6, 9)
 g = QCover.generate_weighted_graph(nodes, edges)
 qulacs_bc = CircuitByQulacs()
-qc = QCover(g, p, optimizer=optc, backend=qulacs_bc)
+qc = QCover(g, p=1, optimizer=optc, backend=qulacs_bc)
 res = qc.run(is_parallel=True)
 ```
 
