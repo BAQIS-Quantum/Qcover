@@ -328,9 +328,8 @@ if __name__ == '__main__':
     opti = Interp(optimize_method="COBYLA", initial_point=[0.5, 0.5])
     optf = Fourier(p=p, q=4, r=2, alpha=0.6, optimize_method="COBYLA")
 
-    from backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
+    from backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")   # sample
-    ts_bc = CircuitByTensor()
     cirq_bc = CircuitByCirq()
     qulacs_bc = CircuitByQulacs()
     pq_bc = CircuitByProjectq()
