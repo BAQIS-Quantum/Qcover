@@ -1,10 +1,7 @@
 import os
-from collections import defaultdict, Callable
-import numpy as np
-import sympy
+from collections import defaultdict
 import matplotlib.pyplot as plt
-import multiprocessing as mp
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 import networkx as nx
 import cirq
 
@@ -105,9 +102,6 @@ class CircuitByCirq:
             return self.expectation_calculation_serial()
 
     def expectation_calculation_serial(self):
-        import os
-        from multiprocessing import cpu_count
-
         cpu_num = cpu_count()
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)
@@ -150,102 +144,3 @@ class CircuitByCirq:
         plt.xlabel('Number of iterations')
         plt.legend()
         plt.show()
-
-
-# definite a Gate
-# class Rx(cirq.Gate):
-#     def __init__(self, theta):
-#         super(Rx, self)
-#         self.theta = theta
-#
-#     def _num_qubits_(self):
-#         return 1
-#
-#     def _unitary_(self):
-#         return np.array([
-#             [np.cos(self.theta), np.sin(self.theta)],
-#             [np.sin(self.theta), -np.cos(self.theta)]
-#         ]) / np.sqrt(2)
-#
-#     def _circuit_diagram_info_(self, args):
-#         return f"R({self.theta})"
-
-
-# expectation calculate test
-# define two qubits
-# q0 = cirq.GridQubit(0,0)
-# q1 = cirq.GridQubit(0,1)
-#
-# # make a PauliSum gate that will return [1] if the state is a bell state b00 (|00>)
-# z0 = cirq.Z(q0)
-# z1 = cirq.Z(q1)
-# z00 = (((1+z0)/2)*((1+z1)/2) )
-#
-# # define three parameters, x will be varied - a,b are fixed
-# phi = sp.Symbol('phi')
-# alpha = sp.Symbol('alpha')
-# beta = sp.Symbol('beta')
-#
-#
-# circuit = cirq.Circuit([
-#                 cirq.rx(phi)(q0),
-#                 cirq.ry(-2*phi)(q1),
-#                 cirq.H(q0),
-#                 cirq.CNOT(q0,q1),
-#                 cirq.rx(alpha)(q0),
-#                 cirq.ry(beta)(q1),
-#                 ])
-# #fix two values of alpha and beta
-# a = 1.8
-# b = -3
-#
-# #loop over phi from -6 to 6
-# x_values = np.arange(-6,6,0.05)
-# y_expectations = []
-#
-# for j in x_values:
-#     #resolve the circuit for different values of phi
-#     resolver = cirq.ParamResolver({'alpha':a,'beta':b,'phi':j})
-#
-#     #calcuclate the expectation value
-#     result = cirq.Simulator().simulate(cirq.resolve_parameters(circuit,resolver))
-#     e = z00.expectation_from_state_vector(result.final_state_vector,{q0:0,q1:1})
-#     y_expectations.append(e)
-#
-# plt.scatter(x_values,y_expectations,label=f'Expected, $\\alpha$={a}, $\\beta$={b}')
-# plt.xlabel('$\phi$')
-# plt.ylabel('Expectation')
-# plt.legend()
-# plt.show()
-
-
-# another example of expectation calculate
-# qubits = cirq.LineQubit.range(nqubits)
-# # qubit order in the observables must match the qubit order in the circuit used to generate |a>
-# qubit_map = dict(zip(qubits, range(nqubits)))
-#
-# for (i, j) in MyGraph.edges():
-#   # make the Z_i*Z_j observable
-#   ZiZj = cirq.Z(qubits[i]) * cirq.Z(qubits[j])
-#   # compute desired expectation
-#   expectation_ZiZj = ZiZj.expectation_from_state_vector(a, qubit_map=qubit_map)
-
-
-# small circuit test
-# import cirq
-# # Pick a qubit.
-# qubit = cirq.GridQubit(0, 0)
-#
-# # Create a circuit
-# circuit = cirq.Circuit(
-#     cirq.X(qubit) ** 0.5,  # Square root of NOT.
-#     cirq.measure(qubit, key='m')  # Measurement.
-# )
-# print("Circuit:")
-# print(circuit)
-#
-# # Simulate the circuit several times.
-# simulator = cirq.Simulator()
-# result = simulator.run(circuit, repetitions=20)
-# print("Results:")
-# print(result)

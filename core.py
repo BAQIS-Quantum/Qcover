@@ -19,9 +19,9 @@ from backends import Backend, CircuitByQiskit
 from exceptions import GraphTypeError
 
 
-class QCover:
+class Qcover:
     """
-    QCover is a QAOA solver
+    Qcover is a QAOA solver
     """
     # pylint: disable=invalid-name
 
@@ -31,7 +31,7 @@ class QCover:
                  optimizer: Optional[Optimizer] = COBYLA(),
                  backend: Optional[Backend] = CircuitByQiskit()
                  ) -> None:
-        """initialize a instance of QCover"""
+        """initialize a instance of Qcover"""
 
         assert graph is not None
         self._simple_graph = graph
@@ -81,12 +81,12 @@ class QCover:
             elif len(graph) == 3:
                 node_num, edge_num, wr = graph
 
-            nodes, edges = QCover.generate_graph_data(node_num, edge_num, wr)
+            nodes, edges = Qcover.generate_graph_data(node_num, edge_num, wr)
             self._simple_graph = self.generate_weighted_graph(nodes, edges)
         elif isinstance(graph, list):
             assert len(graph) == 3
             node_list, edge_list, weight_range = graph
-            self._simple_graph = QCover.generate_weighted_graph(node_list, edge_list, weight_range)
+            self._simple_graph = Qcover.generate_weighted_graph(node_list, edge_list, weight_range)
         else:
             print("Error: the argument graph should be a instance of nx.Graph or a tuple formed as (node_num, edge_num)")
 
@@ -309,20 +309,21 @@ class QCover:
         self._backend._edges_weight = self._edges_weight
         self._backend._is_parallel = is_parallel
 
-        res = self._optimizer.optimize(objective_function=self.calculate, p=self._p)
+        x, fun, nfev = self._optimizer.optimize(objective_function=self.calculate, p=self._p)
+        res = {"Optimal parameter value:": x, "Expectation of Hamiltonian": fun, "Total iterations": nfev}
         return res
 
 
 # usage example
 if __name__ == '__main__':
-    node_num, edge_num = 2, 1
+    node_num, edge_num = 4, 2
     p = 1
-    nodes, edges = QCover.generate_graph_data(node_num, edge_num)
-    g = QCover.generate_weighted_graph(nodes, edges)
+    nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
+    g = Qcover.generate_weighted_graph(nodes, edges)
 
     from optimizers import GradientDescent, Interp, Fourier, COBYLA
     # the numbers in initial_point should be setted by p
-    optc = COBYLA(maxiter=30, tol=1e-6, disp=True)
+    optc = COBYLA(maxiter=30, tol=1e-6, disp=True, initial_point=np.asarray([0.5, 0.5]))
     optg = GradientDescent(maxiter=50, tol=1e-7, learning_rate=0.0001)
     opti = Interp(optimize_method="COBYLA", initial_point=[0.5, 0.5])
     optf = Fourier(p=p, q=4, r=2, alpha=0.6, optimize_method="COBYLA")
@@ -334,12 +335,12 @@ if __name__ == '__main__':
     qulacs_bc = CircuitByQulacs()
     pq_bc = CircuitByProjectq()
 
-    qser_sta = QCover(g, p,
+    qser_sta = Qcover(g, p,
                       optimizer=optc,
-                      backend=qiskit_bc)  #cirq_bc qulacs_bc  pq_bc   ts_bc
+                      backend=cirq_bc)  #qiskit_bc qulacs_bc  pq_bc   ts_bc
 
     time_start = time.time()
-    res_sta_np = qser_sta.run(is_parallel=True)  # False
+    res_sta_np = qser_sta.run(is_parallel=False)  # True
     time_end = time.time()
     print('statevector without parallel takes: ', time_end - time_start)
     print("the result from optimizer is:\n", res_sta_np)
