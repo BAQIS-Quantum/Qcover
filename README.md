@@ -2,13 +2,19 @@
 Qcover is an open source effort to help exploring combinatorial optimization problems in Noisy Intermediate-scale Quantum(NISQ) processor. It is developed by the quantum operating system team in Beijing Academy of Quantum Information Sciences (BAQIS). Qcover supports fast output of optimal parameters in shallow QAOA circuits. It can be used as a powerful tool to assist NISQ processor to demonstrate application-level quantum advantages. 
 
 # Getting started
+Using the following commands to build the executable environment of Qcover
+```git
+conda install --yes --file requirements.txt
+```
 To start using Qcover, simply run
+```git
+git clone https://github.com/BAQIS-Quantum/Qcover
+```
+or
 ```
 python -m pip install --user qcover
 ```
 More example codes and tutorials can be found in the tests folder here on GitHub.
-
-Also, make sure to check out the detailed code documentation.
 
 # Examples
 1. Using algorithm core module to generate the ising random weighted graph and calculate it's Hamiltonian expectation
