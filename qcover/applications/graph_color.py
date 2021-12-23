@@ -4,7 +4,7 @@ import random
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-from applications.common import get_ising_matrix, get_weights_graph, random_regular_graph
+from Qcover.applications.common import get_ising_matrix, get_weights_graph, random_regular_graph
 
 
 logger = logging.getLogger(__name__)

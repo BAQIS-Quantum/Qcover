@@ -3,7 +3,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import time
-from applications.common import get_ising_matrix, get_weights_graph, random_number_list
+from Qcover.applications.common import get_ising_matrix, get_weights_graph, random_number_list
 
 
 logger = logging.getLogger(__name__)

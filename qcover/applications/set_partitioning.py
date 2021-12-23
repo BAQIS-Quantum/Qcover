@@ -7,26 +7,25 @@ import time, os
 from numbers import Number
 import pandas as pd
 from numpy.random import choice
-from applications.common import get_ising_matrix, get_weights_graph, random_number_list
+from Qcover.applications.common import get_ising_matrix, get_weights_graph, random_number_list
 
 
 logger = logging.getLogger(__name__)
 
 
-class SetPacking:
+class SetPartitioning:
     """
-    Set Packing problem:
-    For a finite set S, find a packing (subset of S) that miximises 
-    the total weight of the contained objects without violating any constraint.
+    Set Partitioning problem:
+    For a finite set S, partitioning S into several subsets such that each element of S is in one and only one subset,
+    find the partition that minimises the cost without violating any constraint.
     
-    For the weighted graph, the weight sum of vertices in the subset is maximum.
     """
     def __init__(self,
                  element_list: list = None,
                  length: int = None,
                  weight_range: tuple = (1, 100),
-                 element_set: list = None, #constriants from subsets
-                 weight: list = None,
+                 element_set: np.array = None, #constriants from subsets
+                 weight: np.array = None,
                  P: int = None,
                  seed: int = None):
         """
@@ -34,45 +33,45 @@ class SetPacking:
             element_list (list): a list of elements 
             length (int): length of number_list
             element_set (list): a list of constraints
-            weight (list): list of weight for element in number_list, default values are 1s
+            weight (list): list of weight for element in number_list
             P (int): the penalty value for the penalty terms
             (require input: element_list, element_set, weight, P)
             
-         Returns: 
-            element_list, length, weight_range, weight, element_set, constraints, P
+        Returns: 
+           element_list, length, weight_range, weight, element_set, constraints, P
             
         Example:
-            element_list = ['a','b','c','d']
+            element_list = ['a','b','c','d','e','f']
             element_list_len = len(element_list)
-            element_weight = [10,8,10,12]
-            subsets = [[1,2],[1,3,4]] 
-            penalty = 6
+            element_weight = [3,2,1,1,3,2]
+            subsets = [[1,3,6],[2,3,5,6],[3,4,5],[1,2,4,6]]
+            penalty = 10
         """
+                
         if element_list is None and element_set is None:
             assert length is not None
             assert len(element_set) is not None
             
             self._length = length
             self._weight_range = weight_range
-            #self._weight = weight
-            self._weight = np.ones((self._length,), dtype=int)
+            self._weight = weight
             self._element_set = element_set
             self._constraints = self.constraints()
             self._P = P
             self._seed = seed
             self._element_list = random_number_list(n=self._length,
                                                    weight_range=self._weight_range,
-                                                   seed=self._seed) 
-
+                                                   seed=self._seed)
+            
         else:
+            
             for n in [element_list]:
                 if isinstance(n, Number) == False:
                     self._element_list = pd.factorize(element_list)[0] 
             self._length = len(self._element_list)
             self._weight_range = (np.abs(self._element_list).min(), np.abs(self._element_list).max())
             self._seed = seed
-            #self._weight = weight
-            self._weight = np.ones((self._length,), dtype=int)
+            self._weight = weight
             self._element_set = element_set
             self._constraints = self.constraints()
             self._P = P
@@ -89,66 +88,66 @@ class SetPacking:
     
     def constraints(self): 
         """
-        If two elements in the list are included in the same constraint, 
+        If the element in the list is included in the subset, 
         the constraints matrix entry is 1, vice versa
         """
-        constraints_matrix = np.zeros((self._length,self._length), dtype=int)
+        constraints_mat = np.zeros((self._length,self._length), dtype=int)
         for i in range(self._length): #list length
             for j in range(self._length):
-                if i!=j:
-                    for a in range(len(self._element_set)): #number of constraints
-                        if i+1 in self._element_set[a] and j+1 in self._element_set[a]: 
-                            constraints_matrix[i][j] = 1
-                        
-        return constraints_matrix
+                for a in range(len(self._element_set)): #number of constraints
+                    if i+1 in self._element_set[a] and j+1 in self._element_set[a]: 
+                        constraints_mat[a][i] = 1
+        return constraints_mat #binary matrix
 
     def update_args(self, length, weight,constraints):
         self._length = length
         self._weight = weight
+        self._constraints = constraints
     
     def get_Qmatrix(self):
         """
-        get the Q matrix in QUBO model of set packing problem
+        get the Q matrix in QUBO model of number partition problem
 
         Args:
             numbers (np.array): the number set that to be divided
 
         Returns:
             q_mat (np.array): the the Q matrix of QUBO model.
-            
+        
         ..math::
         minimise x(T)Qx
-        Q[i][j] = (P * constraints[i][j])/2 
-        Q[i][i] = -weight[i] 
+        Q[i][j] = P * number of times elements i and j appear in the same constraint
+        Q[i][i] = -weight[i] - P * number of ones in the ith column of the constraint matrix
         """
+        
         q_mat = np.eye(self._length)
         
         for i in range(self._length):
-            for j in range(self._length):
-                if i==j: 
-                    q_mat[i][i] = -self._weight[i]
-                else:
-                    if abs(self._constraints[i][j] - 0.) <= 1e-8:
-                        q_mat[i][j] = 0
-                    else:
-                        q_mat[i][j] = self._P/2 
+                q_mat[i][i] = self._weight[i] - self._P * np.sum(self._constraints, axis = 0)[i]                           
+                for j in range(i):
+                    r = 0 
+                    for a in range(len(self._element_set)): #number of constraints
+                        if i+1 in self._element_set[a] and j+1 in self._element_set[a]: 
+                            r += 1 #number of times elements i and j appear in the same constraint
+                            q_mat[i][j] = self._P  * r
+                            q_mat[j][i] = q_mat[i][j]
 
         return q_mat
 
-    def set_packing_value(self, x,w): 
-        """Compute the value of a partition.
+    def set_partitioning_value(self, x,w): 
+        """Compute the value of a packing.
 
         Args:
             x (numpy.ndarray): binary string as numpy array.
-            number_list (numpy.ndarray): list of numbers in the instance.
+            weight (numpy.ndarray): weights of elements
 
         Returns:
-            float: value of the packing.
+            float: value of the partitioning.
         """
         if self._qmatrix is None:
             self._qmatrix = self.get_Qmatrix()
-
-        X = np.matmul(x, np.matmul(self._qmatrix, np.transpose(x))) 
+            
+        X = np.matmul(x, np.matmul(self._qmatrix, np.transpose(x)) ) 
         return X
 
     def run(self):

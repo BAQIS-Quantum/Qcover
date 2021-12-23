@@ -1,6 +1,6 @@
 import time
 import networkx as nx
-from applications import MaxCut
+from Qcover.applications import MaxCut
 
 G = nx.Graph()
 n = 0

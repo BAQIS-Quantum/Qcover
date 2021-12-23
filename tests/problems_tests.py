@@ -1,13 +1,13 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-from applications.set_partitioning import SetPartitioning
-from applications.set_packing import SetPacking
-from applications.general_01_programming import General01Programming
-from applications.max_2_sat import Max2Sat
-from applications.minimum_vertex_cover import MinimumVertexCover
-from applications.qadratic_knapsack import QadraticKnapsack
-from applications.quadratic_assignment import QadraticAssignment
+from Qcover.applications.set_partitioning import SetPartitioning
+from Qcover.applications.set_packing import SetPacking
+from Qcover.applications.general_01_programming import General01Programming
+from Qcover.applications.max_2_sat import Max2Sat
+from Qcover.applications.minimum_vertex_cover import MinimumVertexCover
+from Qcover.applications.qadratic_knapsack import QadraticKnapsack
+from Qcover.applications.quadratic_assignment import QadraticAssignment
 #SetPartitioning
 element_list = ['a','b','c','d','e','f']
 element_list_len = len(element_list)

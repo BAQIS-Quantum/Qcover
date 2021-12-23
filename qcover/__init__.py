@@ -14,8 +14,7 @@ __path__ = pkgutil.extend_path(__path__, __name__)
 __version__ = '1.0.1'
 __license__ = 'Apache-2.0 License'
 
-import core
-import applications
+from .core import *
 from .applications import *
 
 
