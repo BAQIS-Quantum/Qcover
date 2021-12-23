@@ -3,7 +3,6 @@ import sys
 sys.path.append(r'../../')
 from core import *
 import cotengra as ctg
-from frameworks import CircuitByTensor
 from applications.graph_color import GraphColoring
 from time import time
 import numpy as np

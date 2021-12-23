@@ -8,11 +8,12 @@ conda install --yes --file requirements.txt
 ```
 To start using Qcover, simply run
 ```git
-git clone https://github.com/BAQIS-Quantum/Qcover
+pip install Qcover
 ```
 or
-```
-python -m pip install --user qcover
+```git
+git clone https://github.com/BAQIS-Quantum/Qcover
+python setup.py install
 ```
 More example codes and tutorials can be found in the tests folder here on GitHub.
 

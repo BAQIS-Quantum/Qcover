@@ -6,16 +6,14 @@ sys.path.append(r'../../')
 from core import *
 import cotengra as ctg
 
-from frameworks import CircuitByTensor
+from backends import CircuitByTensor
 from applications.sherrington_kirkpatrick import SherringtonKirkpatrick
 
 
 from time import time
 import numpy as np
-import h5py
-import matplotlib
-import matplotlib.pyplot as plt
 from datetime import datetime
+import h5py
 
 import quimb as qu
 import quimb.tensor as qtn
@@ -24,8 +22,6 @@ from scipy.optimize import minimize, rosen, rosen_der
 
 
 def qaoa_tensor(graph, p, params):
-
-
     N = len(graph.nodes)
     circ = qu.tensor.Circuit(N)
 
@@ -74,14 +70,11 @@ opt = 'greedy'
 #num_nodes_list = np.arange(4,50,4)
 num_nodes_list = np.array([10,12])
 time_tensor = np.zeros(len(num_nodes_list), dtype=float)
-exp_tensor = np.zeros_like(time_tensor) #expectation value
-parametr_f_tensor = np.zeros([len(num_nodes_list),2, p], dtype=float)
 
 
 cy_ind = 0
 max_step = 1
 for num_nodes in num_nodes_list:
-
     sk = SherringtonKirkpatrick(num_nodes)
     sk_graph = sk.run()
 
@@ -95,13 +88,9 @@ for num_nodes in num_nodes_list:
                            jac=rosen_der,
                            options={'gtol': 1e-8, 'maxiter': max_step, 'disp': True})
     time_tensor[cy_ind] = time() - st
-    exp_tensor[cy_ind] = qser_whole_tensor.fun
-    parametr_f_tensor[cy_ind,0,:] = qser_whole_tensor.x[0,:]
-    parametr_f_tensor[cy_ind,1,:] = qser_whole_tensor.x[1,:]
-
     cy_ind += 1
-dirs = '../data'
 
+dirs = '../data'
 if not os.path.exists(dirs):
     os.makedirs(dirs)
 
@@ -111,8 +100,6 @@ else:
     filename = '../data/sk_wtensor_p%i.h5'%(p)
 data = h5py.File(filename, 'w')
 data['time_tensor'] = time_tensor
-data['exp_tensor'] = exp_tensor
-data['parametr_f_tensor'] = parametr_f_tensor
 data['num_nodes_list'] = num_nodes_list
 data['maxiter'] = max_step
 data['p'] = p

@@ -5,9 +5,6 @@ from core import *
 import os
 import cotengra as ctg
 
-
-from frameworks import CircuitByQiskit
-from frameworks import CircuitByTensor
 from applications.max_cut import MaxCut
 
 

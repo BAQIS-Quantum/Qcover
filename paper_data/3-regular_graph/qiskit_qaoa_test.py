@@ -54,12 +54,7 @@ else:
     filename = '../data/qiskit_p%i_nd%i.h5' % (p, nd)
     data = h5py.File(filename, 'w')
 
-    # res_x = sample_most_likely(result.eigenstate)
 data['time_qiskit'] = time_qiskit
 data['p'] = p
 data['num_nodes_list'] = num_nodes_list
 data['nd'] = nd
-# print("result by QAOA: ", result)
-# print("run time by QAOA: ", ed - st)
-# print("max cut value by QAOA: ", max_cut.max_cut_value(res_x, mc_mat))
-# print("max cut solution by QAOA: ", res_x)
