@@ -18,7 +18,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
   name="Qcover",
-  version="1.0.0",
+  version="1.0.1",
   author="ntyz&finleyzhuang",
   author_email="puyn@baqis.ac.cn",
   description="Quantum computing solver",
