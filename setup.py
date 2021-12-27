@@ -27,24 +27,17 @@ __version__ = ""
 exec(open('qcover/version.py').read())
 
 requirements = [
-    "networkx==2.5.1=pypi_0",
-    "qiskit==0.31.0=pypi_0",
-    'qiskit-aer==0.9.1=pypi_0',
-    'qiskit-aqua==0.9.5=pypi_0',
-    'qiskit-ibmq-provider==0.17.0=pypi_0',
-    'qiskit-ignis==0.6.0=pypi_0',
-    'qiskit-terra==0.18.3=pypi_0',
-    "projectq==0.6.1.post0=pypi_0",
-    "cirq==0.13.0=pypi_0",
-    "cirq-aqt==0.13.0=pypi_0",
-    "cirq-core==0.13.0=pypi_0",
-    "cirq-google==0.13.0=pypi_0",
-    "cirq-ionq==0.13.0=pypi_0",
-    "cirq-pasqal==0.13.0=pypi_0",
-    "cirq-rigetti==0.13.0=pypi_0",
-    "cirq-web==0.13.0=pypi_0",
-    "quimb==1.3.0+345.gf06427e=pypi_0",
-    "qulacs==0.3.0=pypi_0",
+    "networkx==2.5.1",
+    "qiskit==0.31.0",
+    # 'qiskit-aer==0.9.1',
+    # 'qiskit-aqua==0.9.5',
+    # 'qiskit-ibmq-provider==0.17.0',
+    # 'qiskit-ignis==0.6.0',
+    # 'qiskit-terra==0.18.3',
+    "projectq==0.6.1.post0",
+    "cirq==0.13.0",
+    "quimb==1.3.0",
+    "qulacs==0.3.0",
 ]
 
 setup(
@@ -79,7 +72,6 @@ setup(
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: Apache-2.0 License',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS :: MacOS X',

@@ -4,8 +4,9 @@ Qcover is an open source effort to help exploring combinatorial optimization pro
 # Getting started
 Using the following commands to build the executable environment of Qcover
 ```git
-conda install --yes --file requirements.txt
+pip install -r requirements.yml
 ```
+
 To start using Qcover, simply run
 ```git
 pip install Qcover
@@ -67,7 +68,7 @@ Computation of Quantum Mean Value for Shallow QAOA Circuits", arXiv:2112.11151 (
 
 
 # Authors
-The first release of Qcover (v1.0.0) was developed by the quantum operating system team in Beijing Academy of Quantum Information Sciences.
+The first release of Qcover (v1.0.1) was developed by the quantum operating system team in Beijing Academy of Quantum Information Sciences.
 
 Qcover is constantly growing and many other people have already contributed to it in the meantime.
 

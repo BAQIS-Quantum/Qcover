@@ -24,14 +24,14 @@ with open(str) as f:
 mxt = MaxCut(G)
 ising_g = mxt.run()
 p = 1
-from optimizers import GradientDescent, Interp, Fourier, COBYLA
+from Qcover.optimizers import GradientDescent, Interp, Fourier, COBYLA
 optc = COBYLA(p=p, maxiter=30, tol=1e-6, disp=True)
-from backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
+from Qcover.backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
 
 qiskit_bc = CircuitByQulacs()
-from core import QCover
-# qser_sta = QCover(ising_g, p=1, expectation_calc_method="statevector")   #qulacs, backend_name="qulacs"#  #cirq tket  projectq
-qser_sta = QCover(ising_g, p,
+from Qcover.core import Qcover
+# qser_sta = Qcover(ising_g, p=1, expectation_calc_method="statevector")   #qulacs, backend_name="qulacs"#  #cirq tket  projectq
+qser_sta = Qcover(ising_g, p,
                   expectation_calc_method="statevector",
                   optimizer=optc,
                   backend=qiskit_bc)
