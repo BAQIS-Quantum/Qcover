@@ -22,18 +22,13 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 #             requires.append("\"" + str(pkg) + "\"")
 #     return requires
 
-# This reads the __version__ variable from waveforms/version.py
+# This reads the __version__ variable from Qcover/version.py
 __version__ = ""
-exec(open('qcover/version.py').read())
+exec(open('Qcover/version.py').read())
 
 requirements = [
     "networkx==2.5.1",
     "qiskit==0.31.0",
-    # 'qiskit-aer==0.9.1',
-    # 'qiskit-aqua==0.9.5',
-    # 'qiskit-ibmq-provider==0.17.0',
-    # 'qiskit-ignis==0.6.0',
-    # 'qiskit-terra==0.18.3',
     "projectq==0.6.1.post0",
     "cirq==0.13.0",
     "quimb==1.3.0",
@@ -50,7 +45,7 @@ setup(
     long_description_content_type='text/markdown',
     license="Apache-2.0 License",
     url="https://github.com/BAQIS-Quantum/Qcover",
-    keywords="QAOA based combinational optimization solver",
+    keywords="QAOA based combinational optimization solver QUBO quantum",
 
     packages=find_packages(),
     #ext_modules = cythonize("waveforms/math/prime.pyx"),
@@ -77,6 +72,7 @@ setup(
         'Operating System :: MacOS :: MacOS X',
         'Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
     ],

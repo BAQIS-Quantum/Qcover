@@ -2,18 +2,14 @@
 Qcover is an open source effort to help exploring combinatorial optimization problems in Noisy Intermediate-scale Quantum(NISQ) processor. It is developed by the quantum operating system team in Beijing Academy of Quantum Information Sciences (BAQIS). Qcover supports fast output of optimal parameters in shallow QAOA circuits. It can be used as a powerful tool to assist NISQ processor to demonstrate application-level quantum advantages. 
 
 # Getting started
-Using the following commands to build the executable environment of Qcover
-```git
-pip install -r requirements.yml
-```
-
-To start using Qcover, simply run
+Use the following command to complete the installation of Qcover
 ```git
 pip install Qcover
 ```
 or
 ```git
 git clone https://github.com/BAQIS-Quantum/Qcover
+pip install -r requirements.yml
 python setup.py install
 ```
 More example codes and tutorials can be found in the tests folder here on GitHub.
@@ -21,9 +17,9 @@ More example codes and tutorials can be found in the tests folder here on GitHub
 # Examples
 1. Using algorithm core module to generate the ising random weighted graph and calculate it's Hamiltonian expectation
     ```python
-    from core import Qcover
-    from backends import CircuitByQulacs
-    from optimizers import COBYLA
+    from Qcover.core import Qcover
+    from Qcover.backends import CircuitByQulacs
+    from Qcover.optimizers import COBYLA
     
     node_num, edge_num = 6, 9
     p = 1
@@ -40,10 +36,10 @@ More example codes and tutorials can be found in the tests folder here on GitHub
 for example, if you want to using Qcover to solve a max-cut problem, just coding below:
     ```python
     import numpy as np
-    from core import Qcover
-    from backends import CircuitByQiskit
-    from optimizers import COBYLA
-    from applications.max_cut import MaxCut
+    from Qcover.core import Qcover
+    from Qcover.backends import CircuitByQiskit
+    from Qcover.optimizers import COBYLA
+    from Qcover.applications.max_cut import MaxCut
     node_num, degree = 6, 3
     p = 1
     mxt = MaxCut(node_num=node_num, node_degree=degree)
@@ -68,7 +64,7 @@ Computation of Quantum Mean Value for Shallow QAOA Circuits", arXiv:2112.11151 (
 
 
 # Authors
-The first release of Qcover (v1.0.1) was developed by the quantum operating system team in Beijing Academy of Quantum Information Sciences.
+The first release of Qcover was developed by the quantum operating system team in Beijing Academy of Quantum Information Sciences.
 
 Qcover is constantly growing and many other people have already contributed to it in the meantime.
 
