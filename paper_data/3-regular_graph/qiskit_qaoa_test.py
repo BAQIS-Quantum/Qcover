@@ -1,5 +1,3 @@
-import sys
-sys.path.append(r'../../')
 import os
 import time
 import networkx as nx
