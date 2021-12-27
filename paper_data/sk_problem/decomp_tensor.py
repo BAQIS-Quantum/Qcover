@@ -1,8 +1,6 @@
 import os
-import sys
-sys.path.append(r'../../')
 
-from core import *
+from Qcover.core import *
 import cotengra as ctg
 
 from backends import CircuitByTensor

@@ -1,5 +1,4 @@
 import sys
-sys.path.append(r'../../')
 from Qcover.core import *
 import os
 import cotengra as ctg

@@ -1,5 +1,5 @@
 import sys
-sys.path.append(r'../../')
+from Qcover.core import *
 
 from core import *
 import os
