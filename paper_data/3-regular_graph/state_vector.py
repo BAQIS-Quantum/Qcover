@@ -1,7 +1,6 @@
 import sys
-sys.path.append(r'../../')
 import os
-from core import *
+from Qcover.core import *
 from backends import CircuitByQiskit
 from applications.max_cut import MaxCut
 
