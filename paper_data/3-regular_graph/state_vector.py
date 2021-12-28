@@ -1,4 +1,3 @@
-import sys
 import os
 from Qcover.core import *
 from backends import CircuitByQiskit

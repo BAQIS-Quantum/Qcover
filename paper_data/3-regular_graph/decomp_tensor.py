@@ -1,4 +1,3 @@
-import sys
 from Qcover.core import *
 import os
 import cotengra as ctg
