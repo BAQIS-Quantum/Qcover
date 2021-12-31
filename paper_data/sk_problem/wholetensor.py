@@ -2,8 +2,8 @@ import os
 from Qcover.core import *
 import cotengra as ctg
 
-from backends import CircuitByTensor
-from applications.sherrington_kirkpatrick import SherringtonKirkpatrick
+from Qcover.backends import CircuitByTensor
+from Qcover.applications.sherrington_kirkpatrick import SherringtonKirkpatrick
 
 
 from time import time

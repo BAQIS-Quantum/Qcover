@@ -2,8 +2,8 @@ from Qcover.core import *
 import os
 import cotengra as ctg
 
-from backends import CircuitByTensor
-from applications.max_cut import MaxCut
+from Qcover.backends import CircuitByTensor
+from Qcover.applications.max_cut import MaxCut
 
 
 from time import time

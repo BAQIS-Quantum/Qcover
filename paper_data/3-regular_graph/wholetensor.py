@@ -1,7 +1,7 @@
 from Qcover.core import *
 import os
 import cotengra as ctg
-from applications.max_cut import MaxCut
+from Qcover.applications.max_cut import MaxCut
 from time import time
 import numpy as np
 import h5py

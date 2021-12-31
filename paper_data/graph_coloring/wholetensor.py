@@ -1,7 +1,7 @@
 import os
 from Qcover.core import *
 import cotengra as ctg
-from applications.graph_color import GraphColoring
+from Qcover.applications.graph_color import GraphColoring
 from time import time
 import numpy as np
 import h5py

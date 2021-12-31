@@ -1,7 +1,7 @@
 import os
 from Qcover.core import *
-from backends import CircuitByQiskit
-from applications.max_cut import MaxCut
+from Qcover.backends import CircuitByQiskit
+from Qcover.applications.max_cut import MaxCut
 
 from time import time
 import numpy as np

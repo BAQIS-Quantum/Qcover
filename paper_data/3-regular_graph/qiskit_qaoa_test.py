@@ -14,7 +14,7 @@ from qiskit.algorithms.optimizers import COBYLA
 from qiskit.aqua.algorithms import QAOA
 from qiskit import BasicAer, Aer
 
-from applications import MaxCut
+from Qcover.applications import MaxCut
 
 
 

@@ -14,9 +14,9 @@ from typing import Optional
 from collections import defaultdict
 import numpy as np
 import networkx as nx
-from optimizers import Optimizer, COBYLA
-from backends import Backend, CircuitByQiskit
-from exceptions import GraphTypeError
+from .optimizers import Optimizer, COBYLA
+from .backends import Backend, CircuitByQiskit, CircuitByTensor
+from .exceptions import GraphTypeError
 
 
 class Qcover:
@@ -325,14 +325,14 @@ if __name__ == '__main__':
     nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
     g = Qcover.generate_weighted_graph(nodes, edges)
 
-    from optimizers import GradientDescent, Interp, Fourier, COBYLA
+    from .optimizers import GradientDescent, Interp, Fourier, COBYLA
     # the numbers in initial_point should be setted by p
     optc = COBYLA(maxiter=30, tol=1e-6, disp=True, initial_point=np.asarray([0.5, 0.5, 0.5, 0.5]))
     optg = GradientDescent(maxiter=50, tol=1e-7, learning_rate=0.0001)
     opti = Interp(optimize_method="COBYLA")  #, initial_point=[0.5, 0.5]
     optf = Fourier(p=p, q=4, r=2, alpha=0.6, optimize_method="COBYLA")
 
-    from backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
+    from .backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")   # sample
     ts_bc = CircuitByTensor()
     cirq_bc = CircuitByCirq()

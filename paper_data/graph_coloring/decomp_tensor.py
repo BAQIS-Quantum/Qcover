@@ -3,8 +3,8 @@ from Qcover.core import *
 import os
 import cotengra as ctg
 
-from backends import CircuitByTensor
-from applications.graph_color import GraphColoring
+from Qcover.backends import CircuitByTensor
+from Qcover.applications.graph_color import GraphColoring
 
 from time import time
 import numpy as np
