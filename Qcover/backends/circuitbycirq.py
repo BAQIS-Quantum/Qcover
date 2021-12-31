@@ -33,7 +33,7 @@ class CircuitByCirq:
                 op *= cirq.Z(qubits[i])
         return op
 
-    def get_expectation(self, element_graph):
+    def get_expectation(self, element_graph, p=None):
         """
         transform the graph to circuit according to the computing_framework
         Args:
@@ -51,6 +51,7 @@ class CircuitByCirq:
             in whole graph), so return the it's idx mapped by node_to_qubit[] as
             tuple(mapped node_id1, mapped node_id2), and the circuit
         """
+        p = self._p if p is None else p
         original_e, graph = element_graph
         node_to_qubit = defaultdict(int)
         node_list = list(graph.nodes)
@@ -61,11 +62,11 @@ class CircuitByCirq:
         ql = cirq.LineQubit.range(len(node_list))
         circ.append(cirq.H(ql[i]) for i in range(len(node_list)))
 
-        gamma_list, beta_list = self._pargs[: self._p], self._pargs[self._p:]
-        for k in range(self._p):
+        gamma_list, beta_list = self._pargs[:p], self._pargs[p:]
+        for k in range(p):
             for i in graph.nodes:
                 u = node_to_qubit[i]
-                circ.append(cirq.rz(2 * gamma_list * self._nodes_weight[i]).on(ql[u]))
+                circ.append(cirq.rz(2 * gamma_list[k] * self._nodes_weight[i]).on(ql[u]))
 
             for edge in graph.edges:
                 u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
@@ -73,12 +74,12 @@ class CircuitByCirq:
                     continue
 
                 circ.append(cirq.CX(ql[u], ql[v]))
-                circ.append(cirq.rz(2 * gamma_list * self._edges_weight[edge[0], edge[1]]).on(ql[v]))
+                circ.append(cirq.rz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]).on(ql[v]))
                 circ.append(cirq.CX(ql[u], ql[v]))
 
             for nd in graph.nodes:
                 u = node_to_qubit[nd]
-                circ.append(cirq.Moment(cirq.rx(2 * beta_list).on(ql[u])))
+                circ.append(cirq.Moment(cirq.rx(2 * beta_list[k]).on(ql[u])))
 
         qubits = cirq.LineQubit.range(len(node_list))
         qubit_map = dict(zip(qubits, range(len(node_list))))
@@ -95,13 +96,13 @@ class CircuitByCirq:
 
         return weight * exp_res.real
 
-    def expectation_calculation(self):
+    def expectation_calculation(self, p=None):
         if self._is_parallel:
-            return self.expectation_calculation_parallel()
+            return self.expectation_calculation_parallel(p)
         else:
-            return self.expectation_calculation_serial()
+            return self.expectation_calculation_serial(p)
 
-    def expectation_calculation_serial(self):
+    def expectation_calculation_serial(self, p=None):
         cpu_num = cpu_count()
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)
@@ -111,13 +112,13 @@ class CircuitByCirq:
 
         res = 0
         for item in self._element_to_graph.items():
-            res += self.get_expectation(item)
+            res += self.get_expectation(item, p)
 
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
         return res
 
-    def expectation_calculation_parallel(self):
+    def expectation_calculation_parallel(self, p=None):
         cpu_num = 1
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)

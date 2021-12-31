@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 from Qcover.core import *
-=======
->>>>>>> main
 import os
 import time
 import networkx as nx

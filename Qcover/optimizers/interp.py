@@ -57,7 +57,8 @@ class Interp:
             gamma_list, beta_list = res["x"][:k], res["x"][k:]
             value = res["fun"]
             nfev += res["nfev"]
-        return {"gamma": gamma_list, "beta": beta_list, "optimal value": value, "nfev": nfev}
+        return res.x, res.fun, res.nfev
+        # return {"gamma": gamma_list, "beta": beta_list, "optimal value": value, "nfev": nfev}
 
     def optimize(self, objective_function, p):
 

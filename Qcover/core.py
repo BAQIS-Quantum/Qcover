@@ -43,6 +43,7 @@ class Qcover:
 
         self._nodes_weight = []
         self._edges_weight = []
+        self._hard_to_calcute = False
 
     @property
     def p(self):
@@ -267,21 +268,24 @@ class Qcover:
         element_to_graph = self.graph_decomposition(p)
 
         # checking graph type of given problem
-        for k, v in element_to_graph.items():
-            ncnt, ecnt = len(v.nodes), len(v.edges)
-            try:
-                nreq1 = ncnt * (ncnt - 1) <= 2 * ecnt and ncnt >= 10
-                nreq2 = isinstance(k, int) and v.degree[k] >= 20
-                if nreq1 or nreq2:
-                    raise GraphTypeError("The problem is transformed into a dense graph, " \
-                       "which is difficult to be solved effectively by Qcover")
-            except GraphTypeError as e:
-                print(e)
-                sys.exit()
+        if not isinstance(self._backend, CircuitByTensor):
+            for k, v in element_to_graph.items():
+                ncnt, ecnt = len(v.nodes), len(v.edges)
+                try:
+                    nreq1 = ncnt * (ncnt - 1) <= 2 * ecnt and ncnt >= 20
+                    nreq2 = isinstance(k, int) and v.degree[k] >= 30
+                    if nreq1 or nreq2:
+                        raise GraphTypeError("The problem is transformed into a dense graph, " \
+                           "which is difficult to be solved effectively by Qcover")
+                except GraphTypeError as e:
+                    if not self._hard_to_calcute:
+                        print(e)
+                        self._hard_to_calcute = True
+                    # sys.exit()
 
         self._backend._pargs = pargs
         self._backend._element_to_graph = element_to_graph
-        return self._backend.expectation_calculation()
+        return self._backend.expectation_calculation(p)
 
     def run(self, node_num=None, edge_num=None, is_parallel=False):
         """
@@ -317,15 +321,15 @@ class Qcover:
 # usage example
 if __name__ == '__main__':
     node_num, edge_num = 4, 2
-    p = 1
+    p = 2
     nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
     g = Qcover.generate_weighted_graph(nodes, edges)
 
     from optimizers import GradientDescent, Interp, Fourier, COBYLA
     # the numbers in initial_point should be setted by p
-    optc = COBYLA(maxiter=30, tol=1e-6, disp=True, initial_point=np.asarray([0.5, 0.5]))
+    optc = COBYLA(maxiter=30, tol=1e-6, disp=True, initial_point=np.asarray([0.5, 0.5, 0.5, 0.5]))
     optg = GradientDescent(maxiter=50, tol=1e-7, learning_rate=0.0001)
-    opti = Interp(optimize_method="COBYLA", initial_point=[0.5, 0.5])
+    opti = Interp(optimize_method="COBYLA")  #, initial_point=[0.5, 0.5]
     optf = Fourier(p=p, q=4, r=2, alpha=0.6, optimize_method="COBYLA")
 
     from backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
@@ -336,8 +340,8 @@ if __name__ == '__main__':
     pq_bc = CircuitByProjectq()
 
     qser_sta = Qcover(g, p,
-                      optimizer=optc,
-                      backend=qulacs_bc)  #qiskit_bc ts_bc  pq_bc   ts_bc
+                      optimizer=optf,
+                      backend=ts_bc)  #qulacs_bc cirq_bc pq_bc qiskit_bc
 
     time_start = time.time()
     res_sta_np = qser_sta.run(is_parallel=False)  # True

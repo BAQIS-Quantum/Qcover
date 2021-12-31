@@ -39,7 +39,7 @@ class CircuitByProjectq:
             op += QubitOperator('Z' + str(element[0])) + QubitOperator('Z' + str(element[1]))
         return op
 
-    def get_expectation(self, element_graph):
+    def get_expectation(self, element_graph, p=None):
         """
         transform the graph to circuit according to the computing_framework
         Args:
@@ -57,28 +57,29 @@ class CircuitByProjectq:
             in whole graph), so return the it's idx mapped by node_to_qubit[] as
             tuple(mapped node_id1, mapped node_id2), and the circuit
         """
+        p = self._p if p is None else p
         original_e, graph = element_graph
         node_to_qubit = defaultdict(int)
         node_list = list(graph.nodes)
         for i in range(len(node_list)):
             node_to_qubit[node_list[i]] = i
 
-        gamma_list, beta_list = self._pargs[: self._p], self._pargs[self._p:]
+        gamma_list, beta_list = self._pargs[: p], self._pargs[p:]
         eng = MainEngine()
         qubits = eng.allocate_qureg(len(graph.nodes))
         All(H) | qubits
 
-        for k in range(self._p):
+        for k in range(p):
             for edge in graph.edges:
                 u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
                 if u == v:
                     continue
-                Rzz(2 * gamma_list * self._edges_weight[edge[0], edge[1]]) | (qubits[u], qubits[v])
+                Rzz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]) | (qubits[u], qubits[v])
 
             for nd in graph.nodes:
                 u = node_to_qubit[nd]
-                Rz(2 * gamma_list * self._nodes_weight[nd]) | qubits[u]
-                Rx(2 * beta_list) | qubits[u]
+                Rz(2 * gamma_list[k] * self._nodes_weight[nd]) | qubits[u]
+                Rx(2 * beta_list[k]) | qubits[u]
 
         # print("before flush")
         eng.flush()
@@ -98,13 +99,13 @@ class CircuitByProjectq:
 
         return weight * exp_res
 
-    def expectation_calculation(self):
+    def expectation_calculation(self, p=None):
         if self._is_parallel:
-            return self.expectation_calculation_parallel()
+            return self.expectation_calculation_parallel(p)
         else:
-            return self.expectation_calculation_serial()
+            return self.expectation_calculation_serial(p)
 
-    def expectation_calculation_serial(self):
+    def expectation_calculation_serial(self, p=None):
         cpu_num = cpu_count()  # 自动获取最大核心数目
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)
@@ -114,13 +115,13 @@ class CircuitByProjectq:
 
         res = 0
         for item in self._element_to_graph.items():
-            res += self.get_expectation(item)
+            res += self.get_expectation(item, p)
 
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
         return res
 
-    def expectation_calculation_parallel(self):
+    def expectation_calculation_parallel(self, p=None):
         cpu_num = 1
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)

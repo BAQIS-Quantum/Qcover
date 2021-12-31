@@ -1,7 +1,6 @@
 from typing import Optional
 import logging
 import numpy as np
-
 from scipy import optimize as opt
 
 logger = logging.getLogger(__name__)

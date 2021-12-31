@@ -129,7 +129,8 @@ class Fourier:
                 nfev += res["nfev"]
 
         gamma_list, beta_list = self.calculate_gb(self._p, u_best + v_best)
-        return {"gamma": gamma_list, "beta": beta_list, "optimal value": min_val, "nfev": nfev}
+        return res.x, res.fun, res.nfev
+        # return {"gamma": gamma_list, "beta": beta_list, "optimal value": min_val, "nfev": nfev}
 
     def optimize(self, objective_function, p):
         if self._initial_point is None:

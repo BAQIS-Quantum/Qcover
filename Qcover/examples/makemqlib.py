@@ -1,6 +1,9 @@
+# from Qcover import *
+import sys
+sys.path.append(r'E:\Working_projects\QAOA\Qcove\Qcover|')
 import time
 import networkx as nx
-from Qcover.applications import MaxCut
+from ..applications import MaxCut
 
 G = nx.Graph()
 n = 0
@@ -13,7 +16,7 @@ with open(str) as f:
         data = line.split()
         if i == 0:
             n = data[0]
-            G.add_nodes_from(range(1, int(n) + 1))
+            G.add_nodes_from(range(1, int(n) + 1), weight=1)
         else:
             p = data[0]
             q = data[1]
@@ -24,15 +27,14 @@ with open(str) as f:
 mxt = MaxCut(G)
 ising_g = mxt.run()
 p = 1
-from Qcover.optimizers import GradientDescent, Interp, Fourier, COBYLA
-optc = COBYLA(p=p, maxiter=30, tol=1e-6, disp=True)
-from Qcover.backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
+from ..optimizers import GradientDescent, Interp, Fourier, COBYLA
+optc = COBYLA(maxiter=30, tol=1e-6, disp=True)
+from ..backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
 
 qiskit_bc = CircuitByQulacs()
-from Qcover.core import Qcover
+from ..core import Qcover
 # qser_sta = Qcover(ising_g, p=1, expectation_calc_method="statevector")   #qulacs, backend_name="qulacs"#  #cirq tket  projectq
 qser_sta = Qcover(ising_g, p,
-                  expectation_calc_method="statevector",
                   optimizer=optc,
                   backend=qiskit_bc)
 st = time.time()

@@ -33,17 +33,18 @@ class CircuitByTensor:
         self._pargs = None
         self._expectation_path = []
 
-    def get_expectation(self, element_graph):
+    def get_expectation(self, element_graph, p=None):
+        p = self._p if p is None else p
         original_e, graph = element_graph
         node_to_qubit = defaultdict(int)
         node_list = list(graph.nodes)
         for i in range(len(node_list)):
             node_to_qubit[node_list[i]] = i
 
-        gamma_list, beta_list = self._pargs[: self._p], self._pargs[self._p:]
+        gamma_list, beta_list = self._pargs[: p], self._pargs[p:]
         circ = qu.tensor.Circuit(len(graph.nodes))
 
-        for k in range(self._p):
+        for k in range(p):
             for nd in graph.nodes:
                 u = node_to_qubit[nd]
                 if k == 0:
@@ -70,13 +71,13 @@ class CircuitByTensor:
             exp_res = circ.local_expectation(ZZ, where, optimize=self._opt)
         return exp_res.real * weight
 
-    def expectation_calculation(self):
+    def expectation_calculation(self, p=None):
         if self._is_parallel:
-            return self.expectation_calculation_parallel()
+            return self.expectation_calculation_parallel(p)
         else:
-            return self.expectation_calculation_serial()
+            return self.expectation_calculation_serial(p)
 
-    def expectation_calculation_serial(self):
+    def expectation_calculation_serial(self, p=None):
         cpu_num = cpu_count()
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)
@@ -85,13 +86,13 @@ class CircuitByTensor:
         os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_num)
         res = 0
         for item in self._element_to_graph.items():
-            res += self.get_expectation(item)
+            res += self.get_expectation(item, p)
 
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
         return res
 
-    def expectation_calculation_parallel(self):
+    def expectation_calculation_parallel(self, p=None):
         cpu_num = 1
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)

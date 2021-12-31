@@ -51,6 +51,33 @@ for example, if you want to using Qcover to solve a max-cut problem, just coding
     print("the result of problem is:\n", res)
     qc.backend.visualization()
     ```
+3. If you want to customize the Ising weight graph model and calculate the ground
+state expectation with Qcover, you can use the following code
+    ```python
+    import numpy as np
+    import networkx as nx
+    from Qcover.core import Qcover
+    from Qcover.backends import CircuitByTensor
+    from Qcover.optimizers import COBYLA
+
+    ising_g = nx.Graph()
+    nodes = [(0, 3), (1, 2), (2, 1), (3, 1)]
+    edges = [(0, 1, 1), (0, 2, 1), (3, 1, 2), (2, 3, 3)]
+    for nd in nodes:
+       u, w = nd[0], nd[1]
+       ising_g.add_node(int(u), weight=int(w))
+    for ed in edges:
+        u, v, w = ed[0], ed[1], ed[2]
+    ising_g.add_edge(int(u), int(v), weight=int(w))
+
+    p = 2
+    optc = COBYLA(maxiter=30, tol=1e-6, disp=True)
+    ts_bc = CircuitByTensor()
+    qc = Qcover(ising_g, p=p, optimizer=optc, backend=ts_bc)
+    res = qc.run()
+    print("the result of problem is:\n", res)
+    qc.backend.visualization()
+    ```
 
 # How to contribute
 For information on how to contribute, please send an e-mail to members of developer of this project.
