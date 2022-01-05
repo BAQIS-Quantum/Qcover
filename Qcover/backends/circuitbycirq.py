@@ -1,3 +1,4 @@
+import itertools
 import os
 from collections import defaultdict
 import matplotlib.pyplot as plt
@@ -51,8 +52,13 @@ class CircuitByCirq:
             in whole graph), so return the it's idx mapped by node_to_qubit[] as
             tuple(mapped node_id1, mapped node_id2), and the circuit
         """
-        p = self._p if p is None else p
-        original_e, graph = element_graph
+        if self._is_parallel is False:
+            p = self._p if p is None else p
+            original_e, graph = element_graph
+        else:
+            p = self._p if len(element_graph) == 1 else element_graph[1]
+            original_e, graph = element_graph[0]
+
         node_to_qubit = defaultdict(int)
         node_list = list(graph.nodes)
         for i in range(len(node_list)):
@@ -127,8 +133,9 @@ class CircuitByCirq:
         os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_num)
 
         circ_res = []
-        pool = Pool(os.cpu_count())  # , maxtasksperchild=1
-        circ_res.append(pool.map(self.get_expectation, list(self._element_to_graph.items()), chunksize=1))
+        args = list(itertools.product(self._element_to_graph.items(), [p]))
+        pool = Pool(os.cpu_count())
+        circ_res.append(pool.map(self.get_expectation, args))
 
         pool.terminate()  # pool.close()
         pool.join()
