@@ -54,14 +54,14 @@ class CircuitByTensor:
             for nd in graph.nodes:
                 u = node_to_qubit[nd]
                 if k == 0:
-                    circ.apply_gate('H',u)
+                    circ.apply_gate('H', u)
                 circ.apply_gate('rz', 2 * gamma_list[k] * self._nodes_weight[nd], u)
 
             for edge in graph.edges:
                 u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
                 if u == v:
                     continue
-                circ.apply_gate('RZZ', - gamma_list[k] * self._edges_weight[edge[0], edge[1]], u, v)
+                circ.apply_gate('RZZ', -gamma_list[k] * self._edges_weight[edge[0], edge[1]], u, v)
 
             for nd in graph.nodes:
                 circ.apply_gate('rx', 2 * beta_list[k], node_to_qubit[nd])

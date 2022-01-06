@@ -321,7 +321,7 @@ class Qcover:
 # usage example
 if __name__ == '__main__':
     node_num, edge_num = 4, 2
-    p = 2
+    p = 1
     nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
     g = Qcover.generate_weighted_graph(nodes, edges)
 
@@ -340,11 +340,11 @@ if __name__ == '__main__':
     pq_bc = CircuitByProjectq()
 
     qser_sta = Qcover(g, p,
-                      optimizer=opti,
-                      backend=qiskit_bc)  #ts_bc qulacs_bc cirq_bc pq_bc
+                      optimizer=optc,
+                      backend=ts_bc)  # qulacs_bc cirq_bc pq_bc qiskit_bc
 
     time_start = time.time()
-    res_sta_np = qser_sta.run(is_parallel=True)  # False
+    res_sta_np = qser_sta.run(is_parallel=False)  # True
     time_end = time.time()
     print('statevector without parallel takes: ', time_end - time_start)
     print("the result from optimizer is:\n", res_sta_np)
