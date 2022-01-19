@@ -29,7 +29,7 @@ More example codes and tutorials can be found in the tests folder here on GitHub
     nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
     g = Qcover.generate_weighted_graph(nodes, edges)
     qulacs_bc = CircuitByQulacs()
-    optc = COBYLA(maxiter=30, tol=1e-6, disp=True)
+    optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     qc = Qcover(g, p=p, optimizer=optc, backend=qulacs_bc)
     res = qc.run()
     print("the result of problem is:\n", res)
@@ -48,7 +48,7 @@ for example, if you want to using Qcover to solve a max-cut problem, just coding
     mxt = MaxCut(node_num=node_num, node_degree=degree)
     ising_g = mxt.run()
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
-    optc = COBYLA(maxiter=30, tol=1e-6, disp=True, initial_point=np.asarray([0.5, 0.5]))
+    optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     qc = Qcover(ising_g, p=p, optimizer=optc, backend=qiskit_bc)
     res = qc.run()
     print("the result of problem is:\n", res)
@@ -74,7 +74,7 @@ state expectation with Qcover, you can use the following code
     ising_g.add_edge(int(u), int(v), weight=int(w))
 
     p = 2
-    optc = COBYLA(maxiter=30, tol=1e-6, disp=True)
+    optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     ts_bc = CircuitByTensor()
     qc = Qcover(ising_g, p=p, optimizer=optc, backend=ts_bc)
     res = qc.run()

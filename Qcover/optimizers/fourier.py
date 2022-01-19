@@ -16,6 +16,7 @@ class Fourier:
                  r: Optional[int] = 0,
                  alpha: Optional[float] = 0.6,
                  optimize_method: Optional[str] = 'COBYLA',
+                 options: dict = None, #{'maxiter':300, 'disp':True, 'rhobeg': 1.0, 'tol':1e-6},
                  initial_point: Optional[list] = None
                  ) -> None:
         """
@@ -27,11 +28,12 @@ class Fourier:
             alpha:
         """
         self._p = p
-        self._q = q if q is not None and q < self._p else self._p
+        self._q = q if q is not None and (q < self._p and q >= 1) else self._p
         self._r = r
         self._alpha = alpha
         self._optimize_method = optimize_method
-        self._initial_point = initial_point
+        self._options = options
+        self._initial_point = initial_point # used to initialize (u, v) that shape are defined by q
 
         self._objective_function = None
 
@@ -41,7 +43,7 @@ class Fourier:
 
     @q.setter
     def q(self, aq):
-        self._q = aq if aq < self._p else self._p
+        self._q = aq if (aq < self._p and aq >= 1) else self._p
 
     @property
     def r(self):
@@ -85,6 +87,10 @@ class Fourier:
             u_list, v_list = [], []
             min_val = float("inf")
             if j == 1:
+                # Attention:
+                # though only used in j=1, but to be consistent with other optimizers,
+                # self._initial_point should be defined according to q,
+                # which is different with other optimizes
                 ul, vl = list(self._initial_point[: j]), list(self._initial_point[self._q: self._q+j])
             else:
                 if j <= self._q:
@@ -112,10 +118,9 @@ class Fourier:
                 res = opt.minimize(self.loss_function,
                                     x0=np.append(u_cal, v_cal),
                                     args=j,
-                                    method=self._optimize_method,  # 'COBYLA',
-                                    tol=1e-6,
+                                    method=self._optimize_method,
                                     jac=opt.rosen_der,
-                                    options={'gtol': 1e-6, 'maxiter': 30, 'disp': True})
+                                    options=self._options)
 
                 upb = min(self._q, j)
                 if idx == 0:
@@ -124,12 +129,12 @@ class Fourier:
                 func_val = res["fun"]
                 if func_val < min_val:
                     min_val = func_val
-                    u_best, v_best = list(res["x"][:j]), list(res["x"][j:])
+                    u_best, v_best = list(res["x"][:upb]), list(res["x"][upb:])
 
                 nfev += res["nfev"]
 
         gamma_list, beta_list = self.calculate_gb(self._p, u_best + v_best)
-        return res.x, res.fun, res.nfev
+        return np.append(gamma_list, beta_list), min_val, nfev
         # return {"gamma": gamma_list, "beta": beta_list, "optimal value": min_val, "nfev": nfev}
 
     def optimize(self, objective_function, p):

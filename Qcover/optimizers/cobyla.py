@@ -17,22 +17,19 @@ class COBYLA:
 
     # pylint: disable=unused-argument
     def __init__(self,
-                 maxiter: int = 30,
-                 initial_point: Optional[np.ndarray] = None,
-                 disp: bool = False,
-                 rhobeg: float = 1.0,
-                 tol: Optional[float] = 1e-6) -> None:
+                 options: dict = None, #{'maxiter':300, 'disp':True, 'rhobeg': 1.0, 'tol':1e-6},
+                 initial_point: Optional[np.ndarray] = None) -> None:
         """
         Args:
-            maxiter: Maximum number of function evaluations.
-            disp: Set to True to print convergence messages.
-            rhobeg: Reasonable initial changes to the variables.
-            tol: Final accuracy in the optimization (not precisely guaranteed).
-                 This is a lower bound on the size of the trust region.
+            options: some optional setting parameters such as:
+                maxiter: Maximum number of function evaluations.
+                disp: Set to True to print convergence messages.
+                rhobeg: Reasonable initial changes to the variables.
+                tol: Final accuracy in the optimization (not precisely guaranteed).
+                     This is a lower bound on the size of the trust region.
         """
         self._p = None
-        self._tol = tol
-        self._options = {'rhobeg': rhobeg, 'maxiter': maxiter, 'disp': disp}
+        self._options = options
         self._initial_point = initial_point
 
     def optimize(self, objective_function, p):
@@ -43,7 +40,6 @@ class COBYLA:
                            x0=np.array(self._initial_point),
                            args=p,
                            method='COBYLA',
-                           tol=self._tol,
                            jac=opt.rosen_der,
                            options=self._options)
         return res.x, res.fun, res.nfev

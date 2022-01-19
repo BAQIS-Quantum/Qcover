@@ -8,15 +8,16 @@ optimal parameters of the original Ising model
 """
 
 import sys
+sys.path.append(r'E:\Working_projects\QAOA\Qcover')
 import time
 import warnings
 from typing import Optional
 from collections import defaultdict
 import numpy as np
 import networkx as nx
-from optimizers import Optimizer, COBYLA
-from backends import Backend, CircuitByQiskit, CircuitByTensor
-from exceptions import GraphTypeError
+from Qcover.optimizers import Optimizer, COBYLA
+from Qcover.backends import Backend, CircuitByQiskit, CircuitByTensor
+from Qcover.exceptions import GraphTypeError
 
 
 class Qcover:
@@ -320,32 +321,66 @@ class Qcover:
 
 # usage example
 if __name__ == '__main__':
-    node_num, edge_num = 4, 2
-    p = 1
-    nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
-    g = Qcover.generate_weighted_graph(nodes, edges)
+    # node_num, edge_num = 5, 10
+    # nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
+    # g = Qcover.generate_weighted_graph(nodes, edges)
 
-    from optimizers import GradientDescent, Interp, Fourier, COBYLA
+    from Qcover.applications import MaxCut
+
+    mxt = MaxCut(node_num=12, node_degree=3)
+    ising_g = mxt.run()
+
+    p = 5
+    # ising_g = nx.Graph()
+    # nodes = [(0, 3), (1, 2), (2, 1), (3, 1), (4, 3), (5, 4), (6, 5)]
+    # edges = [(0, 1, 1), (0, 2, 1), (3, 1, 2), (2, 3, 3), (4, 1, 1), (4, 2, 2),
+    #          (5, 4, 2), (5, 3, 1), (6, 4, 1), (6, 4, 2), (6, 3, 3), (5, 6, 2)]
+    # for nd in nodes:
+    #     u, w = nd[0], nd[1]
+    #     ising_g.add_node(int(u), weight=int(w))
+    # for ed in edges:
+    #     u, v, w = ed[0], ed[1], ed[2]
+    # ising_g.add_edge(int(u), int(v), weight=int(w))
+
+    from Qcover.optimizers import GradientDescent, Interp, Fourier, COBYLA
     # the numbers in initial_point should be setted by p
-    optc = COBYLA(maxiter=30, tol=1e-6, disp=True, initial_point=np.asarray([0.5, 0.5, 0.5, 0.5]))
     optg = GradientDescent(maxiter=50, tol=1e-7, learning_rate=0.0001)
-    opti = Interp(optimize_method="COBYLA")  #, initial_point=[0.5, 0.5]
-    optf = Fourier(p=p, q=4, r=2, alpha=0.6, optimize_method="COBYLA")
+    # optc = COBYLA(options={'tol': 1e-3, 'disp': True})  # 'maxiter': 30,
+    opti = Interp(optimize_method="COBYLA", options={'tol': 1e-3, 'disp': False})
+    optf = Fourier(p=p, q=4, r=2, alpha=0.6, optimize_method="COBYLA", options={'tol': 1e-3, 'disp': False})
 
-    from backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
+    from Qcover.backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")   # sample
     ts_bc = CircuitByTensor()
     cirq_bc = CircuitByCirq()
-    qulacs_bc = CircuitByQulacs()
+    # qulacs_bc_c = CircuitByQulacs()
     pq_bc = CircuitByProjectq()
 
-    qser_sta = Qcover(g, p,
-                      optimizer=optc,
-                      backend=ts_bc)  # qulacs_bc cirq_bc pq_bc qiskit_bc
+    qc_f = Qcover(ising_g, p,
+                  optimizer=optf,
+                  backend=CircuitByQulacs())  # ts_bc cirq_bc pq_bc qiskit_bc
 
     time_start = time.time()
-    res_sta_np = qser_sta.run(is_parallel=False)  # True
+    res_f = qc_f.run(is_parallel=False)  # True
     time_end = time.time()
-    print('statevector without parallel takes: ', time_end - time_start)
-    print("the result from optimizer is:\n", res_sta_np)
-    qser_sta.backend.visualization()
+    tf = time_end - time_start
+    qc_f.backend.visualization()
+
+
+    optc = COBYLA(options={'maxiter': res_f["Total iterations"], 'tol': 1e-3, 'disp': True})  #
+    qc_c = Qcover(ising_g, p,
+                      optimizer=optc,
+                      backend=CircuitByQulacs())  # ts_bc cirq_bc pq_bc qiskit_bc
+
+    time_start = time.time()
+    res_c = qc_c.run(is_parallel=False)  # True
+    time_end = time.time()
+    qc_c.backend.visualization()
+
+
+    print('COBYLA takes: ', time_end - time_start)
+    print("the result of COBYLA is:\n", res_c['Expectation of Hamiltonian'])
+
+
+    print('Fourier takes: ', tf)
+    print("the result of Fourier is:\n", res_f['Expectation of Hamiltonian'])

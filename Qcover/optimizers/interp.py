@@ -11,9 +11,11 @@ class Interp:
     """
     def __init__(self,
                  optimize_method='COBYLA',
+                 options: dict = None, #{'maxiter':300, 'disp':True, 'rhobeg': 1.0, 'tol':1e-6},
                  initial_point: Optional[np.ndarray] = None):
         self._p = None
         self._optimize_method = optimize_method
+        self._options = options
         self._initial_point = initial_point
 
     def _minimize(self, objective_function):
@@ -31,7 +33,9 @@ class Interp:
         nfev = 0
         for k in range(1, self._p + 1):
             if k == 1:
-                gamma_list, beta_list = self._initial_point[: k], self._initial_point[self._p : self._p+k]
+                # though only used in p=1, but to be consistent with other optimizers,
+                # self._initial_point should be defined according to p
+                gamma_list, beta_list = self._initial_point[: k], self._initial_point[self._p: self._p + k]
                 gamma_list = np.insert(gamma_list, 0, 0)
                 beta_list = np.insert(beta_list, 0, 0)
             else:
@@ -50,14 +54,13 @@ class Interp:
                            x0=np.append(gamma_list[1:k+1], beta_list[1:k+1]),
                            args=k,
                            method=self._optimize_method,
-                           tol=1e-6,
                            jac=opt.rosen_der,
-                           options={'gtol': 1e-6, 'maxiter': 30, 'disp': True})
+                           options=self._options)
 
             gamma_list, beta_list = res["x"][:k], res["x"][k:]
             value = res["fun"]
             nfev += res["nfev"]
-        return res.x, res.fun, res.nfev
+        return np.append(gamma_list, beta_list), value, nfev
         # return {"gamma": gamma_list, "beta": beta_list, "optimal value": value, "nfev": nfev}
 
     def optimize(self, objective_function, p):
