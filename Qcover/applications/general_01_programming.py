@@ -22,11 +22,11 @@ class General01Programming:
     """
 
     def __init__(self,
+                 element_list: list = None,
                  number_list: list = None,
                  length: int = None,
                  weight_range: tuple = (1, 100),
                  weight: list = None,
-                 element_list: list = None,
                  element_set: list = None,  # coefficient of the constraints
                  signs: list = None,
                  b: np.array = None,
@@ -95,6 +95,7 @@ class General01Programming:
             self._seed = seed
 
         self._qmatrix = None
+        self._shift = None
 
     @property
     def length(self):
@@ -195,13 +196,16 @@ class General01Programming:
         AT_b = np.matmul(np.transpose(self._constraints), self._b)  # A(T)b
 
         for i in range(matrix_dimension):
+            q_mat[i][i] = -extended_weight[i] + self._P * (A_matrix_mul[i][i] - 2 * AT_b[i])
             for j in range(matrix_dimension):
                 if i == j:
-                    q_mat[i][i] = -extended_weight[i] + self._P * (A_matrix_mul[i][i] - 2 * AT_b[i])
-                else:
-                    q_mat[i][j] = self._P * A_matrix_mul[i][j]
+                    continue
+                q_mat[i][j] = self._P * A_matrix_mul[i][j]
+                q_mat[i][j] /= 2.0
+        
+        shift = self._P * np.matmul(np.transpose(self._b), self._b)
 
-        return q_mat
+        return q_mat, shift
 
     def general_01_programming_value(self, x, w):
         """Compute the value of the problem.
@@ -221,10 +225,9 @@ class General01Programming:
 
     def run(self):
         if self._qmatrix is None:
-            self._qmatrix = self.get_Qmatrix()
+            self._qmatrix, self._shift = self.get_Qmatrix()
 
         qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         gp_graph = get_weights_graph(ising_mat)
-        return gp_graph
-
+        return gp_graph, self._shift

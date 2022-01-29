@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 import random
 import matplotlib.pyplot as plt
-from Qcover.applications.common import get_ising_matrix, get_weights_graph, random_number_list
+from Qcover.applications.common import get_ising_matrix, get_weights_graph, random_number_list #Qcover.applications.
 
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class NumberPartition:
                  number_list: np.array = None,
                  length: int = None,
                  weight_range: tuple = (1, 100),
-                 seed: int = None):
+                 seed: int = None) -> None:
 
         if number_list is None:
             assert length is not None
@@ -38,7 +38,10 @@ class NumberPartition:
             self._length = len(number_list)
             self._weight_range = (np.abs(number_list).min(), np.abs(number_list).max())
             self._seed = seed
-
+            
+        self._qmatrix = None
+        self._shift = None
+        
     @property
     def length(self):
         return self._length
@@ -67,19 +70,22 @@ class NumberPartition:
         Returns:
             q_mat (np.array): the the Q matrix of QUBO model.
         """
-
+        
         all_sum = np.sum(self._number_list)
         q_mat = np.eye(self._length)
 
         for i in range(self._length):
+            q_mat[i][i] = self._number_list[i] * (self._number_list[i] - all_sum)
             for j in range(self._length):
                 if i == j:
-                    q_mat[i][i] = self._number_list[i] * (self._number_list[i] - all_sum)
-                else:
-                    q_mat[i][j] = self._number_list[i] * self._number_list[j]
-
-        return q_mat
-
+                    continue
+                q_mat[i][j] = self._number_list[i] * self._number_list[j]
+                q_mat[i][j] /= 2.0
+        
+        shift = 0.0
+        
+        return q_mat,shift
+    
     def partition_value(self, x, number_list):  #
         """Compute the value of a partition.
 
@@ -95,9 +101,10 @@ class NumberPartition:
         return diff * diff
 
     def run(self):
-        qubo_mat = self.get_Qmatrix()
+        if self._qmatrix is None:
+            self._qmatrix, self._shift = self.get_Qmatrix()
+            
+        qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
-        np_graph = get_weights_graph(ising_mat, )
-        return np_graph
-
-
+        np_graph = get_weights_graph(ising_mat)
+        return np_graph, self._shift

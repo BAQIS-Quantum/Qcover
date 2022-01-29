@@ -78,6 +78,7 @@ class SetPacking:
             self._P = P
 
         self._qmatrix = None
+        self._shift = None
             
     @property
     def length(self):
@@ -124,16 +125,19 @@ class SetPacking:
         q_mat = np.eye(self._length)
         
         for i in range(self._length):
+            q_mat[i][i] = -self._weight[i]
             for j in range(self._length):
                 if i==j: 
-                    q_mat[i][i] = -self._weight[i]
+                    continue
+                elif abs(self._constraints[i][j] - 0.) <= 1e-8:
+                    q_mat[i][j] = 0
                 else:
-                    if abs(self._constraints[i][j] - 0.) <= 1e-8:
-                        q_mat[i][j] = 0
-                    else:
-                        q_mat[i][j] = self._P/2 
+                    q_mat[i][j] = self._P/2 
+                    q_mat[i][j] /= 2.0
+        
+        shift = 0.0
 
-        return q_mat
+        return q_mat, shift
 
     def set_packing_value(self, x,w): 
         """Compute the value of a partition.
@@ -153,9 +157,9 @@ class SetPacking:
 
     def run(self):
         if self._qmatrix is None:
-            self._qmatrix = self.get_Qmatrix()
+            self._qmatrix, self._shift= self.get_Qmatrix()
 
         qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         sp_graph = get_weights_graph(ising_mat)
-        return sp_graph
+        return sp_graph, self._shift

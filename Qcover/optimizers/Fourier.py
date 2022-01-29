@@ -61,6 +61,15 @@ class Fourier:
             for k in range(1, upb + 1):
                 gamma[i - 1] += u[k - 1] * sin((k - 0.5) * (i - 0.5) * pi / step)
                 beta[i - 1] += v[k - 1] * cos((k - 0.5) * (i - 0.5) * pi / step)
+
+            if gamma[i - 1] < -np.pi / 2:
+                gamma[i - 1] = -np.pi / 2 + 0.01
+            if beta[i - 1] < -np.pi / 4:
+                beta[i - 1] = -np.pi / 4 + 0.01
+            if gamma[i - 1] > np.pi / 2:
+                gamma[i - 1] = np.pi / 2 - 0.01
+            if beta[i - 1] > np.pi / 4:
+                beta[i - 1] = np.pi / 4 - 0.01
         return gamma, beta
 
     def loss_function(self, pargs, step):

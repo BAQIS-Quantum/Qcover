@@ -75,6 +75,7 @@ class QadraticAssignment:
             self._P = P
 
         self._qmatrix = None
+        self._shift = None
                     
     # def penalty(self):
     #    """
@@ -116,7 +117,7 @@ class QadraticAssignment:
                idl, idr = x * self._n, (x + 1) * self._n- 1 
                if (i >= idl and i <= idr) and (j >= idl and j <= idr):
                    if i == j:
-                       q_mat[i][i] = -2*self._P
+                       q_mat[i][i] = -2 * self._P
                    else:
                        q_mat[i][j] = self._P
                else:
@@ -125,7 +126,17 @@ class QadraticAssignment:
                             q_mat[x*self._n+k][y*self._n+l] = self._flow[x][y]*self._distance[k][l] 
                             if self._flow[x][y]*self._distance[k][l] == 0:
                                 q_mat[x*self._n+k][y*self._n+l] = self._P
-        return q_mat
+        
+        qubo_mat = q_mat.copy()
+        for i in range(matrix_dimension):
+            for j in range(matrix_dimension):
+                if i == j:
+                    continue
+                qubo_mat[i][j] /= 2.0
+                
+        shift = 2 * self._P
+               
+        return qubo_mat, shift
 
     def quadratic_assignment_value(self, x,w): 
         """Compute the value of a quadratic assignment.
@@ -145,9 +156,9 @@ class QadraticAssignment:
 
     def run(self):
         if self._qmatrix is None:
-            self._qmatrix = self.get_Qmatrix()
+            self._qmatrix, self._shift= self.get_Qmatrix()
 
         qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         qa_graph = get_weights_graph(ising_mat)
-        return qa_graph
+        return qa_graph, self._shift

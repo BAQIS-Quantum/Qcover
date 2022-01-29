@@ -38,6 +38,7 @@ class MaxCut:
             self._graph = graph
 
         self._qmatrix = None
+        self._shift = None
 
     @property
     def node_num(self):
@@ -66,9 +67,29 @@ class MaxCut:
         adj_mat = nx.adjacency_matrix(self._graph).A
         qubo_mat = adj_mat.copy()
         for i in range(self._node_num):
-            qubo_mat[i][i] = - (np.sum(adj_mat[i]) - adj_mat[i][i])
+            qubo_mat[i][i] = -(np.sum(adj_mat[i]) - adj_mat[i][i])
+            for j in range(self._node_num):
+                if i == j:
+                    continue
+                qubo_mat[i][j] /= 2.0
 
-        return qubo_mat
+        shift = 0.0
+        for i, j in self._graph.edges:
+            try:
+                ed_w = self._graph.adj[i][j]["weight"]
+            except KeyError:
+                ed_w = 1.0
+            shift += 1.0/4.0 * ed_w
+
+        for i in self._graph.nodes:
+            try:
+                nd_w = self._graph.nodes[i]["weight"]
+            except KeyError:
+                nd_w = 0
+            shift += 1.0/2.0 * nd_w
+
+        # self._shift = shift
+        return qubo_mat, shift
 
     def max_cut_value(self, x, w):
         """Compute the value of a cut.
@@ -85,10 +106,10 @@ class MaxCut:
 
     def run(self):
         if self._qmatrix is None:
-            self._qmatrix = self.get_Qmatrix()
+            self._qmatrix, self._shift = self.get_Qmatrix()
 
         qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         mc_graph = get_weights_graph(ising_mat)
-        return mc_graph
+        return mc_graph, self._shift
 

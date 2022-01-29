@@ -40,6 +40,9 @@ class GraphColoring:
         else:
             self._node_num = len(graph.nodes)
             self._graph = graph
+            
+        self._qmatrix = None
+        self._shift = None
 
     @property
     def node_num(self):
@@ -91,11 +94,23 @@ class GraphColoring:
                     if adj_mat[x][y] != 0:
                         for l in range(self._color_num):
                             qubo_mat[x*self._color_num + l][y*self._color_num + l] = self._P/2
-
-        return qubo_mat
+        
+        q_mat = qubo_mat.copy()
+        for i in range(Qmat_length):
+            for j in range(Qmat_length):
+               if i == j:
+                   continue
+               q_mat[i][j] /= 2.0
+               
+        shift = self._P
+        return q_mat, shift
 
     def run(self):
-        qubo_mat = self.get_Qmatrix()
+        if self._qmatrix is None:
+            self._qmatrix, self._shift = self.get_Qmatrix()
+
+        qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         gc_graph = get_weights_graph(ising_mat)
-        return gc_graph
+        return gc_graph, self._shift
+    

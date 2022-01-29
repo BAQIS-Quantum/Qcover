@@ -42,4 +42,5 @@ class COBYLA:
                            method='COBYLA',
                            jac=opt.rosen_der,
                            options=self._options)
+
         return res.x, res.fun, res.nfev

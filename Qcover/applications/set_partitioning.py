@@ -77,6 +77,7 @@ class SetPartitioning:
             self._P = P
 
         self._qmatrix = None
+        self._shift = None
             
     @property
     def length(self):
@@ -130,9 +131,12 @@ class SetPartitioning:
                         if i+1 in self._element_set[a] and j+1 in self._element_set[a]: 
                             r += 1 #number of times elements i and j appear in the same constraint
                             q_mat[i][j] = self._P  * r
+                            q_mat[i][j] /= 2.0
                             q_mat[j][i] = q_mat[i][j]
+        
+        shift = self._P
 
-        return q_mat
+        return q_mat, shift
 
     def set_partitioning_value(self, x,w): 
         """Compute the value of a packing.
@@ -152,9 +156,9 @@ class SetPartitioning:
 
     def run(self):
         if self._qmatrix is None:
-            self._qmatrix = self.get_Qmatrix()
+            self._qmatrix, self._shift = self.get_Qmatrix()
 
         qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         sp_graph = get_weights_graph(ising_mat)
-        return sp_graph
+        return sp_graph, self._shift

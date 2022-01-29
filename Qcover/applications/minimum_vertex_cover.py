@@ -62,7 +62,8 @@ class MinimumVertexCover:
             self._P = P
 
         self._qmatrix = None
-
+        self._shift = None
+        
     @property
     def node_num(self):
         return self._node_num
@@ -100,14 +101,18 @@ class MinimumVertexCover:
         
         for i in range(self._node_num):
             qubo_mat[i][i] = 1 - self._P * self._graph.degree[i] #node degree
-            for j in range(i):
-                if abs(adj_mat[i][j] - 0.) <= 1e-8:
+            for j in range(self._node_num):
+                if i == j:
+                    continue
+                elif abs(adj_mat[i][j] - 0.) <= 1e-8:
                     qubo_mat[i][j] = 0
                 else:
                     qubo_mat[i][j] = self._P /2
-                    qubo_mat[j][i] = qubo_mat[i][j]
-
-        return qubo_mat
+                    qubo_mat[i][j] /= 2.0
+        
+        shift = self._P
+        
+        return qubo_mat, shift
 
     def minimum_vertex_cover_value(self, x, w):
         """Compute the value of a cut.
@@ -127,9 +132,9 @@ class MinimumVertexCover:
     
     def run(self):
         if self._qmatrix is None:
-            self._qmatrix = self.get_Qmatrix()
+            self._qmatrix, self._shift = self.get_Qmatrix()
 
         qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         mvc_graph = get_weights_graph(ising_mat)
-        return mvc_graph
+        return mvc_graph, self._shift

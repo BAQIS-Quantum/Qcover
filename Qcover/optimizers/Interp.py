@@ -48,6 +48,15 @@ class Interp:
                     gamma_list_new[i] = (i - 1) / k * gamma_list[i - 1] + (k - i + 1) / k * gamma_list[i]
                     beta_list_new[i] = (i - 1) / k * beta_list[i - 1] + (k - i + 1) / k * beta_list[i]
 
+                    if gamma_list_new[i] < -np.pi / 2:
+                        gamma_list_new[i] = -np.pi / 2 + 0.01
+                    if beta_list_new[i] < -np.pi / 4:
+                        beta_list_new[i] = -np.pi / 4 + 0.01
+                    if gamma_list_new[i] > np.pi / 2:
+                        gamma_list_new[i] = np.pi / 2 - 0.01
+                    if beta_list_new[i] > np.pi / 4:
+                        beta_list_new[i] = np.pi / 4 - 0.01
+
                 gamma_list, beta_list = gamma_list_new, beta_list_new
 
             res = opt.minimize(objective_function,

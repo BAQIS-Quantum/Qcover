@@ -52,6 +52,9 @@ class Max2Sat:
             self._weight_range = weight_range
             self._seed = seed
 
+        self._qmatrix = None
+        self._shift = None
+        
     def get_Qmatrix(self):
         """
         get the Q matrix in QUBO model of number partition problem
@@ -70,6 +73,7 @@ class Max2Sat:
         """
 
         q_mat = np.zeros((self._variable_no,self._variable_no))
+        shift = 0.0
 
         for a in range(len(self._clauses)): 
            indices_1 = [i for i, x in enumerate(self._clauses[a]) if x == 1]
@@ -78,6 +82,7 @@ class Max2Sat:
                q_mat[indices_1[1]][indices_1[0]] = 0.5
                q_mat[indices_1[0]][indices_1[0]] += -1
                q_mat[indices_1[1]][indices_1[1]] += -1
+               shift += 1
                
            indices_2 = [i for i, x in enumerate(self._clauses[a]) if x == -1]
            if len(indices_2)>1:
@@ -92,7 +97,15 @@ class Max2Sat:
                       q_mat[indices_3[0]][indices_4[0]] += -0.5
                       q_mat[indices_4[0]][indices_3[0]] += -0.5
                       q_mat[indices_4[0]][indices_4[0]] += 1
-        return q_mat
+                      
+           qubo_mat = q_mat.copy()
+           for i in range(self._variable_no):
+               for j in range(self._variable_no):
+                   if i == j:
+                       continue
+                   qubo_mat[i][j] /= 2.0
+           
+        return qubo_mat, shift
         
 
     def max_2_sat_value(self, x):  
@@ -112,7 +125,10 @@ class Max2Sat:
         return X
 
     def run(self):
-        qubo_mat = self.get_Qmatrix()
+        if self._qmatrix is None:
+            self._qmatrix, self._shift = self.get_Qmatrix()
+
+        qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         m2s_graph = get_weights_graph(ising_mat)
-        return m2s_graph
+        return m2s_graph, self._shift

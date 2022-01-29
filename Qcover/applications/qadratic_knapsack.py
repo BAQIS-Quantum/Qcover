@@ -83,6 +83,7 @@ class QadraticKnapsack:
             self._constraints = self.get_constraints()
 
         self._qmatrix = None
+        self._shift = None
             
     @property
     def length(self):
@@ -143,13 +144,15 @@ class QadraticKnapsack:
             extended_v[j] = [0]*(matrix_dimension)
 
         for i in range(matrix_dimension):
+            q_mat[i][i] = -extended_v[i][i] + self._P*((self._constraints[i])**2 - 2*self._b[0]*self._constraints[i]) 
             for j in range(matrix_dimension):
                 if i == j:
-                    q_mat[i][i] = -extended_v[i][i] + self._P*((self._constraints[i])**2 - 2*self._b[0]*self._constraints[i]) 
-                else:
-                    q_mat[i][j] = -extended_v[i][j] + self._P*(self._constraints[i]*self._constraints[j])
-
-        return q_mat
+                    continue
+                q_mat[i][j] = -extended_v[i][j] + self._P*(self._constraints[i]*self._constraints[j])
+                q_mat[i][j] /= 2.0
+        
+        shift = self._P * (-2 * self._slack * self._b[0] + self._b[0]**2)
+        return q_mat, shift
 
     def quadratic_knapsack_value(self, x,w): 
         """Compute the value of quadratic knapsack.
@@ -170,9 +173,9 @@ class QadraticKnapsack:
 
     def run(self):
         if self._qmatrix is None:
-            self._qmatrix = self.get_Qmatrix()
+            self._qmatrix, self._shift = self.get_Qmatrix()
 
         qubo_mat = self._qmatrix
         ising_mat = get_ising_matrix(qubo_mat)
         qk_graph = get_weights_graph(ising_mat)
-        return qk_graph   
+        return qk_graph, self._shift

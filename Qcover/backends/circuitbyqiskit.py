@@ -222,7 +222,7 @@ class CircuitByQiskit:
         params = params.flatten()
         _, circ = self.graph_to_circuit(params, graph)
         circ.save_statevector()
-        # subc.draw(output='mpl', interactive=True)
+        # circ.draw(output='mpl', interactive=True)
 
         sim = Aer.get_backend('aer_simulator')
         result = sim.run(circ).result()
@@ -242,7 +242,9 @@ class CircuitByQiskit:
         hist = job_sim.result().get_counts(transpiled_qc)
         # for key, val in hist.items():
         #     print("%s has %s" % (key, str(val)))
-        # plot_histogram(hist)
-        # plt.show()
+
+        from qiskit.visualization import plot_histogram
+        plot_histogram(hist)
+        plt.show()
         return hist
 

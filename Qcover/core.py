@@ -44,7 +44,7 @@ class Qcover:
 
         self._nodes_weight = []
         self._edges_weight = []
-        self._hard_to_calcute = False
+        # self._hard_to_calcute = False
 
     @property
     def p(self):
@@ -176,8 +176,22 @@ class Qcover:
         if self._nodes_weight != [] and self._edges_weight != []:
             return self._nodes_weight, self._edges_weight
 
-        nodew = nx.get_node_attributes(self.simple_graph, 'weight')
-        edw = nx.get_edge_attributes(self.simple_graph, 'weight')
+        # nodew = nx.get_node_attributes(self.simple_graph, 'weight')
+        # edw = nx.get_edge_attributes(self.simple_graph, 'weight')
+
+        nodew = dict()
+        edw = dict()
+        for nd in self._simple_graph.nodes:
+            try:
+                nodew[nd] = self._simple_graph.nodes[nd]["weight"]
+            except KeyError:
+                nodew[nd] = 0
+
+        for ed in self._simple_graph.edges:
+            try:
+                edw[ed] = self._simple_graph.edges[ed]["weight"]
+            except KeyError:
+                edw[ed] = 0
         edgew = edw.copy()
         for key, val in edw.items():
             edgew[(key[1], key[0])] = val
@@ -206,6 +220,11 @@ class Qcover:
         subg_dict = defaultdict(list)
         if dtype == 'node':
             for node in self.simple_graph.nodes:
+                try:
+                    self._simple_graph.nodes[node]["weight"] #nd_w =
+                except KeyError:
+                    continue
+
                 node_set = {(node, self._nodes_weight[node])}
                 edge_set = set()
                 for i in range(p):
@@ -218,6 +237,11 @@ class Qcover:
                 subg_dict[node] = subg
         else:
             for edge in self.simple_graph.edges:
+                try:
+                    self._simple_graph.edges[edge]["weight"]
+                except KeyError:
+                    continue
+
                 node_set = {(edge[0], self._nodes_weight[edge[0]]), (edge[1], self._nodes_weight[edge[1]])}
                 edge_set = {(edge[0], edge[1], self._edges_weight[edge[0], edge[1]])}
 
@@ -295,7 +319,6 @@ class Qcover:
             node_num: nodes number in the graphical representation of the problem
             edge_num: edges number in the graphical representation of the problem
             is_parallel: run programs in parallel or not
-
         Returns:
             results of the problem, which including the optimal parameters of the circuit model,
             the optimal expectation value and the number of times the optimizer iterates
@@ -315,8 +338,9 @@ class Qcover:
         self._backend._is_parallel = is_parallel
 
         x, fun, nfev = self._optimizer.optimize(objective_function=self.calculate, p=self._p)
-        res = {"Optimal parameter value:": x, "Expectation of Hamiltonian": fun, "Total iterations": nfev}
+        res = {"Optimal parameter value": x, "Expectation of Hamiltonian": fun, "Total iterations": nfev}
         return res
+
 
 
 # usage example
@@ -325,62 +349,67 @@ if __name__ == '__main__':
     # nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
     # g = Qcover.generate_weighted_graph(nodes, edges)
 
-    from Qcover.applications import MaxCut
+    # from Qcover.applications import MaxCut
+    # mxt = MaxCut(node_num=30, node_degree=3)
+    # ising_g = mxt.run()
 
-    mxt = MaxCut(node_num=12, node_degree=3)
-    ising_g = mxt.run()
-
-    p = 5
-    # ising_g = nx.Graph()
-    # nodes = [(0, 3), (1, 2), (2, 1), (3, 1), (4, 3), (5, 4), (6, 5)]
-    # edges = [(0, 1, 1), (0, 2, 1), (3, 1, 2), (2, 3, 3), (4, 1, 1), (4, 2, 2),
-    #          (5, 4, 2), (5, 3, 1), (6, 4, 1), (6, 4, 2), (6, 3, 3), (5, 6, 2)]
+    p = 1
+    # g = nx.Graph()
+    # nodes = [(0, 1), (1, 1), (2, 1)]
+    # edges = [(0, 1, 1), (1, 2, 1)]
     # for nd in nodes:
     #     u, w = nd[0], nd[1]
-    #     ising_g.add_node(int(u), weight=int(w))
+    #     g.add_node(int(u), weight=int(w))
     # for ed in edges:
     #     u, v, w = ed[0], ed[1], ed[2]
-    # ising_g.add_edge(int(u), int(v), weight=int(w))
+    #     g.add_edge(int(u), int(v), weight=int(w))
+    #
+    # from Qcover.applications import MaxCut
+    # mxt = MaxCut(g)
+    # ising_g, shift = mxt.run()
 
-    from Qcover.optimizers import GradientDescent, Interp, Fourier, COBYLA
+    ising_g = nx.Graph()
+    for i in range(6):
+        ising_g.add_node(i, weight=1)
+        # ising_g.add_edge(i, i + 1, weight=-1)
+    ising_g.add_node(6, weight=0)
+
+    from Qcover.optimizers import GradientDescent, Interp, Fourier, COBYLA, L_BFGS_B, SLSQP
     # the numbers in initial_point should be setted by p
     optg = GradientDescent(maxiter=50, tol=1e-7, learning_rate=0.0001)
-    # optc = COBYLA(options={'tol': 1e-3, 'disp': True})  # 'maxiter': 30,
+    optc = COBYLA(options={'tol': 1e-3, 'disp': False})  # 'maxiter': 30,
     opti = Interp(optimize_method="COBYLA", options={'tol': 1e-3, 'disp': False})
-    optf = Fourier(p=p, q=4, r=2, alpha=0.6, optimize_method="COBYLA", options={'tol': 1e-3, 'disp': False})
+    optf = Fourier(p=p, q=2, r=3, alpha=0.6, optimize_method="COBYLA", options={'tol': 1e-3, 'disp': False})
 
     from Qcover.backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
-    qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")   # sample
+    qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")  # sample
     ts_bc = CircuitByTensor()
     cirq_bc = CircuitByCirq()
-    # qulacs_bc_c = CircuitByQulacs()
+    qulacs_bc = CircuitByQulacs()
     pq_bc = CircuitByProjectq()
 
-    qc_f = Qcover(ising_g, p,
-                  optimizer=optf,
-                  backend=CircuitByQulacs())  # ts_bc cirq_bc pq_bc qiskit_bc
-
-    time_start = time.time()
-    res_f = qc_f.run(is_parallel=False)  # True
-    time_end = time.time()
-    tf = time_end - time_start
-    qc_f.backend.visualization()
-
-
-    optc = COBYLA(options={'maxiter': res_f["Total iterations"], 'tol': 1e-3, 'disp': True})  #
     qc_c = Qcover(ising_g, p,
-                      optimizer=optc,
-                      backend=CircuitByQulacs())  # ts_bc cirq_bc pq_bc qiskit_bc
+                  optimizer=optc,
+                  backend=qiskit_bc)  # ts_bc cirq_bc pq_bc qiskit_bc
 
     time_start = time.time()
     res_c = qc_c.run(is_parallel=False)  # True
     time_end = time.time()
-    qc_c.backend.visualization()
+    tf = time_end - time_start
+    # qc_c.backend.visualization()
+    exp = res_c["Expectation of Hamiltonian"]
+    print("expectation is: ", exp)  # + shift
+    # print("expectation is: ", exp) #
 
+    params = res_c["Optimal parameter value"]
+    out_state = qc_c.backend.get_result_statevector(params, ising_g)
+    print("out state is:", out_state)
+    out_count = qc_c.backend.get_result_counts(params, ising_g)
 
-    print('COBYLA takes: ', time_end - time_start)
-    print("the result of COBYLA is:\n", res_c['Expectation of Hamiltonian'])
+    # optc = COBYLA(options={'maxiter': res_f["Total iterations"],'tol': 1e-3, 'disp': True})  #
+    # print('COBYLA takes: ', time_end - time_start)
+    # print("the result of COBYLA is:\n", res_c['Expectation of Hamiltonian'])
+    #
+    # print('Fourier takes: ', tf)
+    # print("the result of Fourier is:\n", res_f['Expectation of Hamiltonian'])
 
-
-    print('Fourier takes: ', tf)
-    print("the result of Fourier is:\n", res_f['Expectation of Hamiltonian'])
