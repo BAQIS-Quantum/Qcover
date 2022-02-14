@@ -1,20 +1,15 @@
 import os
-from Qcover.core import *
-import cotengra as ctg
 
-from Qcover.backends import CircuitByTensor
 from Qcover.applications.sherrington_kirkpatrick import SherringtonKirkpatrick
 
 
 from time import time
 import numpy as np
-from datetime import datetime
 import h5py
 
 import quimb as qu
 import quimb.tensor as qtn
-import networkx as nx
-from scipy.optimize import minimize, rosen, rosen_der
+from scipy.optimize import minimize, rosen_der
 
 
 def qaoa_tensor(graph, p, params):

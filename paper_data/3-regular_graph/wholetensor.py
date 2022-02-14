@@ -1,20 +1,15 @@
-from Qcover.core import *
 import os
-import cotengra as ctg
 from Qcover.applications.max_cut import MaxCut
 from time import time
 import numpy as np
 import h5py
-import matplotlib
-import matplotlib.pyplot as plt
-from datetime import datetime
 # import ast
 
 
 import quimb as qu
 import quimb.tensor as qtn
 import networkx as nx
-from scipy.optimize import minimize, rosen, rosen_der
+from scipy.optimize import minimize, rosen_der
 
 
 def qaoa_tensor(graph, p, params):

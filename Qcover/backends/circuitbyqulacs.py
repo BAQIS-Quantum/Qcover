@@ -12,17 +12,18 @@ import networkx as nx
 
 from qulacs import Observable, QuantumCircuit, QuantumState
 from qulacs.gate import RX, RZ, CNOT, merge
+from Qcover.backends import Backend
 
 
-class CircuitByQulacs:
+class CircuitByQulacs(Backend):
     """generate a instance of CircuitByQulacs"""
 
     def __init__(self,
-                 # p: int = 1,
                  nodes_weight: list = None,
                  edges_weight: list = None,
                  is_parallel: bool = None) -> None:
         """initialize a instance of CircuitByCirq"""
+        super(CircuitByQulacs, self).__init__()
 
         self._p = None
         self._nodes_weight = nodes_weight

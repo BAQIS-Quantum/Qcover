@@ -1,7 +1,6 @@
 import itertools
 import os
 import time
-import warnings
 from collections import defaultdict, Callable
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,18 +11,20 @@ from qiskit.aqua import QuantumInstance, aqua_globals
 from qiskit.aqua.operators import PauliExpectation, CircuitSampler, StateFn, CircuitOp, CircuitStateFn, \
     MatrixExpectation, X, Y, Z, I
 
-expectation_path = []
+from Qcover.backends import Backend
+import warnings
+warnings.filterwarnings("ignore")
 
-class CircuitByQiskit:
+
+class CircuitByQiskit(Backend):
     """generate a instance of CircuitByQiskit"""
     def __init__(self,
-                 # p: int = 1,
                  nodes_weight: list = None,
                  edges_weight: list = None,
                  expectation_calc_method: str = "statevector",
                  is_parallel: bool = None) -> None:
         """initialize a instance of CircuitByQiskit"""
-
+        super(CircuitByQiskit, self).__init__()
         self._p = None
         self._nodes_weight = nodes_weight
         self._edges_weight = edges_weight
@@ -33,7 +34,7 @@ class CircuitByQiskit:
         self._element_to_graph = None
         self._pargs = None
         self._expectation_path = []
-        # self._subg_to_circuit = None
+        self._element_expectation = dict()
 
     def get_operator(self, element, qubit_num):
         if self._expectation_calc_method == "statevector":
@@ -107,9 +108,10 @@ class CircuitByQiskit:
             sampler = CircuitSampler(q_instance).convert(expectation)
             exp_res = sampler.eval().real
 
-        return weight * exp_res
+        return weight, exp_res
 
     def expectation_calculation(self, p=None):
+        self._element_expectation = {}
         if self._is_parallel:
             return self.expectation_calculation_parallel(p)
         else:
@@ -124,7 +126,10 @@ class CircuitByQiskit:
         os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_num)
         res = 0
         for item in self._element_to_graph.items():
-            res += self.get_expectation(item, p)
+            w_i, exp_i = self.get_expectation(item, p)
+            if isinstance(item[0], tuple):
+                self._element_expectation[item[0]] = exp_i
+            res += w_i * exp_i
 
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
@@ -243,8 +248,8 @@ class CircuitByQiskit:
         # for key, val in hist.items():
         #     print("%s has %s" % (key, str(val)))
 
-        from qiskit.visualization import plot_histogram
-        plot_histogram(hist)
-        plt.show()
+        # from qiskit.visualization import plot_histogram
+        # plot_histogram(hist)
+        # plt.show()
         return hist
 

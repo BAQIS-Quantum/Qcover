@@ -1,7 +1,6 @@
 import os
 
-from Qcover.core import *
-import cotengra as ctg
+from tests.core_without_RQAOA import *
 
 from Qcover.backends import CircuitByTensor
 from Qcover.applications.sherrington_kirkpatrick import SherringtonKirkpatrick
@@ -10,11 +9,6 @@ from Qcover.applications.sherrington_kirkpatrick import SherringtonKirkpatrick
 from time import time
 import numpy as np
 import h5py
-from datetime import datetime
-
-
-import quimb as qu
-import quimb.tensor as qtn
 
 p = 1
 opt = 'greedy'

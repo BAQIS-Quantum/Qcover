@@ -1,15 +1,11 @@
 import os
-from Qcover.core import *
-import cotengra as ctg
 from Qcover.applications.graph_color import GraphColoring
 from time import time
 import numpy as np
 import h5py
-from datetime import datetime
 import quimb as qu
 import quimb.tensor as qtn
-import networkx as nx
-from scipy.optimize import minimize, rosen, rosen_der
+from scipy.optimize import minimize, rosen_der
 
 
 def qaoa_tensor(graph, p, params):

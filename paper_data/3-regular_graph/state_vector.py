@@ -1,5 +1,5 @@
 import os
-from Qcover.core import *
+from tests.core_without_RQAOA import *
 from Qcover.backends import CircuitByQiskit
 from Qcover.applications.max_cut import MaxCut
 
@@ -7,11 +7,7 @@ from time import time
 import numpy as np
 import h5py
 
-from datetime import datetime
-
 import networkx as nx
-from scipy.optimize import minimize, rosen, rosen_der
-
 
 nd = 3
 p = 1

@@ -5,17 +5,18 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool, cpu_count
 import networkx as nx
 import cirq
+from Qcover.backends import Backend
 
-class CircuitByCirq:
+
+class CircuitByCirq(Backend):
     """generate a instance of CircuitByCirq"""
 
     def __init__(self,
-                 # p: int = 1,
                  nodes_weight: list = None,
                  edges_weight: list = None,
                  is_parallel: bool = None) -> None:
         """initialize a instance of CircuitByCirq"""
-
+        super(CircuitByCirq, self).__init__()
         self._p = None
         self._nodes_weight = nodes_weight
         self._edges_weight = edges_weight

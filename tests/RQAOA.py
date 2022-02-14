@@ -1,40 +1,16 @@
-# This code is part of Qcover.
-#
-# (C) Copyright BAQIS 2021, 2022.
-#
-# This code is licensed under the Apache License, Version 2.0. You may
-# obtain a copy of this license in the LICENSE.txt file in the root directory
-# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
-#
-# Any modifications or derivative works of this code must retain this
-# copyright notice, and modified files need to carry a notice indicating
-# that they have been altered from the originals.
-
-"""
-Object to solve QAOA problems
-
-The QAOA problems can be represented as an Ising model, and then be transformed to a DAG.
-The directed acyclic graph is decomposed by a specified p value, and these subgraphs then
-be transformed as circuits and be executed on simulators, using optimizer to get the
-optimal parameters of the original Ising model
-"""
-
-import sys
 import time
-from itertools import permutations
 
 from typing import Optional
 from collections import defaultdict
 import numpy as np
 import networkx as nx
 from Qcover.optimizers import Optimizer, COBYLA
-from Qcover.backends import Backend, CircuitByQiskit, CircuitByTensor
-from Qcover.exceptions import GraphTypeError
+from Qcover.backends import Backend, CircuitByQiskit
 import warnings
 warnings.filterwarnings("ignore")
 
 
-class Qcover:
+class RQcover:
     """
     Qcover is a QAOA solver
     """
@@ -57,95 +33,6 @@ class Qcover:
         self._nodes_weight = []
         self._edges_weight = []
         # self._path = dict()
-
-    @property
-    def p(self):
-        return self._p
-
-    @p.setter
-    def p(self, ap):
-        self._p = ap
-
-    @property
-    def backend(self):
-        return self._backend
-
-    @property
-    def optimizer(self):
-        return self._optimizer
-
-    @property
-    def simple_graph(self):
-        return self._simple_graph
-
-    @simple_graph.setter
-    def simple_graph(self, graph):
-        """
-        according to the type of graph(nx.graph / tuple) to set the value of
-        self._simple_graph
-        """
-        if isinstance(graph, nx.Graph):
-            self._simple_graph = graph
-        elif isinstance(graph, tuple):
-            assert (len(graph) >= 2) and (len(graph) <= 3)
-
-            if len(graph) == 2:
-                node_num, edge_num = graph
-                wr = None
-            elif len(graph) == 3:
-                node_num, edge_num, wr = graph
-
-            nodes, edges = Qcover.generate_graph_data(node_num, edge_num, wr)
-            self._simple_graph = self.generate_weighted_graph(nodes, edges)
-        elif isinstance(graph, list):
-            assert len(graph) == 3
-            node_list, edge_list, weight_range = graph
-            self._simple_graph = Qcover.generate_weighted_graph(node_list, edge_list, weight_range)
-        else:
-            print(
-                "Error: the argument graph should be a instance of nx.Graph or a tuple formed as (node_num, edge_num)")
-
-    @staticmethod
-    def generate_graph_data(node_num, edge_num, weight_range=10):
-        """
-        generate a simple graph‘s weights of nodes and edges with
-        node number is node_num, edge number is edge_num
-        Args:
-            node_num (int): node number in graph
-            edge_num (int): edge number in graph
-            weight_range (int): weight range of nodes and edges
-        Return:
-            nodes(set of tuple(nid, node_weight)), edges(set of tuple(nid1, nid2, edge_weight))
-        """
-        if weight_range is None:
-            weight_range = 10
-
-        nodes = set()
-        for i in range(node_num):
-            ndw = np.random.choice(range(weight_range))
-            nodes |= {(i, ndw)}
-
-        edges = set()
-        cnt = edge_num
-        max_edges = node_num * (node_num - 1) / 2
-        if cnt > max_edges:
-            cnt = max_edges
-        while cnt > 0:
-            u = np.random.randint(node_num)
-            v = np.random.randint(node_num)
-            if u == v:  # without self loop
-                continue
-            flg = 0
-            for e in edges:  # without duplicated edges
-                if set(e[:2]) == set([v, u]):
-                    flg = 1
-                    break
-            if flg == 1:
-                continue
-            edw = np.random.choice(range(weight_range))
-            edges |= {(u, v, edw)}
-            cnt -= 1
-        return nodes, edges
 
     @classmethod
     def generate_weighted_graph(cls, nodes, edges, weight_range=10):
@@ -215,7 +102,7 @@ class Qcover:
                 node_set = {(node, nodes_weight[node])}
                 edge_set = set()
                 for i in range(p):
-                    new_nodes = {(nd2, nodes_weight[nd2]) for nd1 in node_set for nd2 in graph[nd1[0]]}
+                    new_nodes = { (nd2, nodes_weight[nd2]) for nd1 in node_set for nd2 in graph[nd1[0]] }
                     new_edges = {(nd1[0], nd2, edges_weight[nd1[0], nd2]) for nd1 in node_set for nd2 in graph[nd1[0]]}
                     node_set |= new_nodes
                     edge_set |= new_edges
@@ -293,7 +180,7 @@ class Qcover:
         node_num = len(graph.nodes)
         queue = list(basic_sol.keys()) if basic_sol is not None else []
         for i in range(node_num):
-            if sol[i] == -1:  # len(graph.neighbors(i)) != 0 and
+            if sol[i] == -1:  #len(graph.neighbors(i)) != 0 and
                 queue.append(i)
                 while len(queue) > 0:
                     u = queue[0]
@@ -320,46 +207,9 @@ class Qcover:
         p = self._p if p is None else p
         element_to_graph = self.graph_decomposition(graph=self._simple_graph, p=p)
 
-        # checking graph type of given problem
-        if not isinstance(self._backend, CircuitByTensor):
-            for k, v in element_to_graph.items():
-                ncnt, ecnt = len(v.nodes), len(v.edges)
-                try:
-                    nreq1 = ncnt * (ncnt - 1) <= 2 * ecnt and ncnt >= 20
-                    nreq2 = isinstance(k, int) and v.degree[k] >= 30
-                    if nreq1 or nreq2:
-                        raise GraphTypeError("The problem is transformed into a dense graph, " \
-                           "which is difficult to be solved effectively by Qcover")
-                except GraphTypeError as e:
-                    print(e)
-                    # if not self._hard_to_calcute:
-                    #     print(e)
-                    #     self._hard_to_calcute = True
-                    # sys.exit()
-
         self._backend._pargs = pargs
         self._backend._element_to_graph = element_to_graph
         return self._backend.expectation_calculation(p)
-
-    def run_qaoa(self):
-        """
-        run Qcover code to solve the given problem
-        Args:
-            node_num: nodes number in the graphical representation of the problem
-            edge_num: edges number in the graphical representation of the problem
-            is_parallel: run programs in parallel or not
-
-        Returns:
-            results of the problem, which including the optimal parameters of the circuit model,
-            the optimal expectation value and the number of times the optimizer iterates
-        """
-        nodes_weight, edges_weight = self.get_graph_weights(self._simple_graph)
-        self._backend._nodes_weight = nodes_weight
-        self._backend._edges_weight = edges_weight
-
-        x, fun, nfev = self._optimizer.optimize(objective_function=self.calculate)
-        res = {"Optimal parameter value": x, "Expectation of Hamiltonian": fun, "Total iterations": nfev}
-        return res
 
     def run_rqaoa(self, node_threshold=1):
         current_g = self._simple_graph
@@ -370,7 +220,7 @@ class Qcover:
             self._backend._nodes_weight = nodes_weight
             self._backend._edges_weight = edges_weight
 
-            self._optimizer.optimize(objective_function=self.calculate)  # x, fun, nfev =
+            self._optimizer.optimize(objective_function=self.calculate)   #x, fun, nfev =
             exp_sorted = sorted(self._backend._element_expectation.items(), key=lambda item: abs(item[1]), reverse=True)
             u, v = exp_sorted[0][0]
             correlation = 1 if exp_sorted[0][1] - 1e-8 > 0 else -1
@@ -396,19 +246,20 @@ class Qcover:
         solution = self.get_solution(pathg, basic_sol)
         return solution
 
-    def run(self, node_num=None, edge_num=None, is_parallel=False, mode='QAQA'):
+    def run(self, is_parallel=False, mode="RQAOA"):
+        """
+        run Qcover code to solve the given problem
+        Args:
+            node_num: nodes number in the graphical representation of the problem
+            edge_num: edges number in the graphical representation of the problem
+            is_parallel: run programs in parallel or not
 
-        if self._simple_graph is None:
-            if node_num is None or edge_num is None:
-                print("Error: the graph to be solved is not specified, "
-                      "arguments of form (node_number, edge_number) should be given")
-                return None
-            self.simple_graph(node_num, edge_num)
-
+        Returns:
+            results of the problem, which including the optimal parameters of the circuit model,
+            the optimal expectation value and the number of times the optimizer iterates
+        """
         self._backend._is_parallel = is_parallel
-        if mode == 'QAQA':
-            res = self.run_qaoa()
-        else:
+        if mode != "QAOA":
             res = self.run_rqaoa()
 
         return res
@@ -420,7 +271,7 @@ if __name__ == '__main__':
 
     g = nx.Graph()
     nodes = [(0, 1), (1, 1), (2, 1)]
-    edges = [(0, 1, -1), (1, 2, 1)]
+    edges = [(0, 1, -1), (1, 2, -1)]
     # edges = [(0, 1, 3), (1, 2, 2), (0, 2, 1)]
     for nd in nodes:
         u, w = nd[0], nd[1]
@@ -436,25 +287,13 @@ if __name__ == '__main__':
     optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
 
-    qc = Qcover(ising_g, p,
+    rqc = RQcover(ising_g, p,
                   optimizer=optc,
                   backend=qiskit_bc)
 
     st = time.time()
-    sol = qc.run(mode='QAQA')
+    sol = rqc.run()
+    # rqc.run_rqaoa()
     ed = time.time()
-    print("time cost by QAOA is:", ed - st)
-    params = sol["Optimal parameter value"]
-    out_count = qc.backend.get_result_counts(params, ising_g)
-    import matplotlib.pyplot as plt
-    from qiskit.visualization import plot_histogram
-
-    plot_histogram(out_count)
-    plt.show()
-
-    st = time.time()
-    sol = qc.run(mode='RQAQA')
-    ed = time.time()
-    print("time cost by RQAOA is:", ed - st)
+    print("time cost is:", ed - st)
     print("solution is:", sol)
-

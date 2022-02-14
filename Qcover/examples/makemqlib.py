@@ -1,9 +1,9 @@
 import time
 import networkx as nx
 from Qcover.applications import MaxCut
-from Qcover.optimizers import GradientDescent, Interp, Fourier, COBYLA
-from Qcover.backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
-from Qcover.core import Qcover
+from Qcover.optimizers import Fourier, COBYLA
+from Qcover.backends import CircuitByQulacs, CircuitByTensor
+from tests.core_without_RQAOA import Qcover
 
 G = nx.Graph()
 node_num, edge_num = 0, 0

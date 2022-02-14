@@ -1,10 +1,13 @@
+import sys
 import numpy as np
 from typing import Optional
 from scipy import optimize as opt
 from math import *
+from Qcover.optimizers import Optimizer
+from Qcover.exceptions import ArrayShapeError
 
 
-class Fourier:
+class Fourier(Optimizer):
     """
         Fourier optimizer: a heuristic optimization method for QAOA,
         implemented according to the paper
@@ -27,6 +30,7 @@ class Fourier:
             r: the number of random perturbations to add
             alpha:
         """
+        super().__init__()
         self._p = p
         self._q = q if q is not None and (q < self._p and q >= 1) else self._p
         self._r = r
@@ -146,8 +150,15 @@ class Fourier:
         return np.append(gamma_list, beta_list), min_val, nfev
         # return {"gamma": gamma_list, "beta": beta_list, "optimal value": min_val, "nfev": nfev}
 
-    def optimize(self, objective_function, p):
+    def optimize(self, objective_function):
         if self._initial_point is None:
-            self._initial_point = np.array([np.random.random() for x in range(2 * p)])
+            self._initial_point = np.array([np.random.random() for x in range(2 * self._q)])
+        else:
+            try:
+                if len(self._initial_point) != 2 * self._q:
+                    raise ArrayShapeError("The shape of initial parameters is not match with q")
+            except ArrayShapeError as e:
+                print(e)
+                sys.exit()
 
         return self._minimize(objective_function)

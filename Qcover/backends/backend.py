@@ -13,20 +13,20 @@ class Backend(ABC):
     """Base class for backend."""
 
     @abstractmethod
-    def __init__(self,
-                 p: int = 1,
-                 nodes_weight: list = None,
-                 edges_weight: list = None,
-                 is_parallel: bool = None) -> None:
-        """initialize a instance of CircuitByCirq"""
-
-        self._p = p
-        self._nodes_weight = nodes_weight
-        self._edges_weight = edges_weight
-        self._is_parallel = False if is_parallel is None else is_parallel
-
-        self._element_to_graph = None
-        self._pargs = None
+    def __init__(self, *args):
+        pass
+    # def __init__(self,
+    #              p: int = 1,
+    #              nodes_weight: list = None,
+    #              edges_weight: list = None,
+    #              is_parallel: bool = None) -> None:
+    #     self._p = p
+    #     self._nodes_weight = nodes_weight
+    #     self._edges_weight = edges_weight
+    #     self._is_parallel = False if is_parallel is None else is_parallel
+    #
+    #     self._element_to_graph = None
+    #     self._pargs = None
 
     @abstractmethod
     def get_operator(self, *args):

@@ -27,7 +27,7 @@ class SetPacking:
                  weight_range: tuple = (1, 100),
                  element_set: list = None, #constriants from subsets
                  weight: list = None,
-                 P: int = None,
+                 P: float = None,
                  seed: int = None):
         """
         Args:
@@ -93,13 +93,13 @@ class SetPacking:
         If two elements in the list are included in the same constraint, 
         the constraints matrix entry is 1, vice versa
         """
-        constraints_matrix = np.zeros((self._length,self._length), dtype=int)
+        constraints_matrix = np.zeros((self._length,self._length), dtype='float64')
         for i in range(self._length): #list length
             for j in range(self._length):
                 if i!=j:
                     for a in range(len(self._element_set)): #number of constraints
                         if i+1 in self._element_set[a] and j+1 in self._element_set[a]: 
-                            constraints_matrix[i][j] = 1
+                            constraints_matrix[i][j] = 1.0
                         
         return constraints_matrix
 
@@ -122,24 +122,25 @@ class SetPacking:
         Q[i][j] = (P * constraints[i][j])/2 
         Q[i][i] = -weight[i] 
         """
-        q_mat = np.eye(self._length)
+        # set_mat = np.eye(self._length)
+        # q_mat = np.array(set_mat, dtype='float64')
+        q_mat = np.eye(self._length, dtype='float64')
         
         for i in range(self._length):
             q_mat[i][i] = -self._weight[i]
             for j in range(self._length):
-                if i==j: 
+                if i == j:
                     continue
                 elif abs(self._constraints[i][j] - 0.) <= 1e-8:
-                    q_mat[i][j] = 0
+                    q_mat[i][j] = 0.0
                 else:
-                    q_mat[i][j] = self._P/2 
-                    q_mat[i][j] /= 2.0
+                    q_mat[i][j] = self._P/2.0
         
         shift = 0.0
 
         return q_mat, shift
 
-    def set_packing_value(self, x,w): 
+    def set_packing_value(self, x, w):
         """Compute the value of a partition.
 
         Args:
@@ -163,3 +164,18 @@ class SetPacking:
         ising_mat = get_ising_matrix(qubo_mat)
         sp_graph = get_weights_graph(ising_mat)
         return sp_graph, self._shift
+    
+if __name__ == '__main__':
+    
+    
+    element_list = ['a','b','c','d']
+    element_list_len = len(element_list)
+    element_weight = [1.0,1.0,1.0,1.0]
+    # element_weight = np.ones((element_list_len,), dtype=int)
+    subsets = [[1.0,2.0],[1.0,3.0,4.0]] 
+    penalty = 6.0
+    
+   
+    sp = SetPacking(element_list=element_list,length=element_list_len, weight=element_weight, element_set=subsets, P=penalty)
+    print(sp.get_Qmatrix())
+    print(sp.constraints())

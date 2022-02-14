@@ -37,6 +37,27 @@ class GraphTypeError(QcoverError):
         # print("The problem is transformed into a dense graph, which is difficult to be solved effectively by Qcover")
 
 
+class ArrayShapeError(QcoverError):
+    """Raised when a sequence subscript is out of range."""
+
+    def __init__(self, msg):   #, *args
+        """Set the error message."""
+        # warnings.warn(
+        # "The problem is transformed into a dense graph, which is difficult to be solved effectively by Qcover",
+        #     stacklevel=2,
+        # )
+        # self.message = "The problem is transformed into a dense graph, " \
+        #                "which is difficult to be solved effectively by Qcover"
+        self.name = "ArrayShapeError: "
+        self.message = msg
+        super().__init__(msg)
+
+    def __str__(self):
+        return self.name + self.message
+        # print("The problem is transformed into a dense graph, which is difficult to be solved effectively by Qcover")
+
+
+
 class QQcoverUserConfigError(QcoverError):
     """Raised when an error is encountered reading a user config file."""
 

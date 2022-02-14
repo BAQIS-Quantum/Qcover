@@ -1,6 +1,5 @@
-from Qcover.core import *
+from tests.core_without_RQAOA import *
 import os
-import cotengra as ctg
 
 from Qcover.backends import CircuitByTensor
 from Qcover.applications.max_cut import MaxCut
@@ -9,13 +8,8 @@ from Qcover.applications.max_cut import MaxCut
 from time import time
 import numpy as np
 import h5py
-from datetime import datetime
 
-
-import quimb as qu
-import quimb.tensor as qtn
 import networkx as nx
-from scipy.optimize import minimize, rosen, rosen_der
 
 nd = 3
 p = 1

@@ -65,13 +65,14 @@ class MaxCut:
             q_mat (np.array): the the Q matrix of QUBO model.
         """
         adj_mat = nx.adjacency_matrix(self._graph).A
-        qubo_mat = adj_mat.copy()
+        qubo_mat = np.array(adj_mat, dtype='float64')
+        # qubo_mat = adj_mat.astype('float64')
         for i in range(self._node_num):
             qubo_mat[i][i] = -(np.sum(adj_mat[i]) - adj_mat[i][i])
             for j in range(self._node_num):
                 if i == j:
                     continue
-                qubo_mat[i][j] /= 2.0
+                qubo_mat[i][j] = qubo_mat[i][j] / 2.0
 
         shift = 0.0
         for i, j in self._graph.edges:

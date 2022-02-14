@@ -1,18 +1,14 @@
-from Qcover.core import *
 import os
 import time
 import networkx as nx
-import matplotlib.pyplot as plt
 import numpy as np
 import h5py
-from datetime import datetime
 
 from qiskit.optimization.applications.ising import max_cut
-from qiskit.optimization.applications.ising.common import sample_most_likely
-from qiskit.aqua import QuantumInstance, aqua_globals
+from qiskit.aqua import aqua_globals
 from qiskit.algorithms.optimizers import COBYLA
 from qiskit.aqua.algorithms import QAOA
-from qiskit import BasicAer, Aer
+from qiskit import Aer
 
 from Qcover.applications import MaxCut
 

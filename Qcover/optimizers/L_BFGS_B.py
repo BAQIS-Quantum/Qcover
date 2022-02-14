@@ -1,7 +1,10 @@
+import sys
 from typing import Optional
 import logging
 import numpy as np
 from scipy import optimize as opt
+from Qcover.optimizers import Optimizer
+from Qcover.exceptions import ArrayShapeError
 
 logger = logging.getLogger(__name__)
 
@@ -28,20 +31,29 @@ class L_BFGS_B:
                 tol: Final accuracy in the optimization (not precisely guaranteed).
                      This is a lower bound on the size of the trust region.
         """
+        super().__init__()
         self._p = None
         self._options = options
         self._initial_point = initial_point
 
-    def optimize(self, objective_function, p):
+    def optimize(self, objective_function):
         if self._initial_point is None:
-            self._initial_point = np.array([np.random.random() for x in range(2 * p)])
+            self._initial_point = np.array([np.random.random() for x in range(2 * self._p)])
+        else:
+            try:
+                if len(self._initial_point) != 2 * self._p:
+                    raise ArrayShapeError("The shape of initial parameters is not match with p")
+            except ArrayShapeError as e:
+                print(e)
+                sys.exit()
 
-        res = opt.minimize(objective_function,
-                           x0=np.array(self._initial_point),
-                           args=p,
-                           method='L-BFGS-B',
-                           jac=None,
-                           options=self._options
+        res = opt.minimize(
+                            objective_function,
+                            x0=np.array(self._initial_point),
+                            args=self._p,
+                            method='L-BFGS-B',
+                            jac=None,
+                            options=self._options
                            )
         return res.x, res.fun, res.nfev
 

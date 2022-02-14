@@ -10,5 +10,5 @@ class Optimizer:
     def __init__(self, *args):
         pass
 
-    def optimize(self, objective_function, p):
+    def optimize(self, objective_function):
         pass

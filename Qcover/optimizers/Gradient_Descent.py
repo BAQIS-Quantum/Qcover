@@ -12,9 +12,12 @@
 
 # Notice: This document has been modified on the basis of the original code
 
+import sys
 import numpy as np
 from typing import Iterator, Optional, Union, Callable, Dict, Any
 from functools import partial
+from Qcover.optimizers import Optimizer
+from Qcover.exceptions import ArrayShapeError
 
 CALLBACK = Callable[[int, np.ndarray, float, float], None]
 
@@ -29,6 +32,8 @@ class GradientDescent:
             callback: Optional[CALLBACK] = None,
             perturbation: Optional[float] = None,
             initial_point: Optional[np.ndarray] = None) -> None:
+
+        super().__init__()
 
         self._p = None
         self.maxiter = maxiter
@@ -149,10 +154,17 @@ class GradientDescent:
 
         return x, loss(x), nfevs
 
-    def optimize(self, objective_function, p, gradient_function=None):
+    def optimize(self, objective_function, gradient_function=None):
         if self._initial_point is None:
-            self._initial_point = np.array([np.random.random() for x in range(2 * p)])
-        return self._minimize(objective_function, gradient_function)  #, initial_point
+            self._initial_point = np.array([np.random.random() for x in range(2 * self._p)])
+        else:
+            try:
+                if len(self._initial_point) != 2 * self._p:
+                    raise ArrayShapeError("The shape of initial parameters is not match with p")
+            except ArrayShapeError as e:
+                print(e)
+                sys.exit()
+        return self._minimize(objective_function, gradient_function)
 
 
 def constant(eta=0.01):

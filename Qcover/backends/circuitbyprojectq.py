@@ -12,15 +12,17 @@ from projectq import MainEngine
 from projectq.ops import QubitOperator, All, H, Rx, Measure, MatrixGate, Rz, Rzz, Z
 from projectq.setups import linear
 
+from Qcover.backends import Backend
 
-class CircuitByProjectq:
+
+class CircuitByProjectq(Backend):
     """generate a instance of CircuitByProjectq"""
     def __init__(self,
-                 # p: int = 1,
                  nodes_weight: list = None,
                  edges_weight: list = None,
                  is_parallel: bool = None) -> None:
         """initialize a instance of CircuitByProjectq"""
+        super(CircuitByProjectq, self).__init__()
 
         self._p = None
         self._nodes_weight = nodes_weight

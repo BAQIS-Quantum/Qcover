@@ -1,14 +1,13 @@
 # import sys
 # sys.path.append('/public/home/humengjun/Qcover/')
 import time
-import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from Qcover.core import Qcover
+from tests.core_without_RQAOA import Qcover
 from Qcover.applications.max_cut import MaxCut
-from Qcover.optimizers import COBYLA, GradientDescent, Interp, Fourier
-from Qcover.backends import CircuitByQiskit, CircuitByCirq, CircuitByQulacs, CircuitByProjectq, CircuitByTensor
+from Qcover.optimizers import COBYLA, Fourier
+from Qcover.backends import CircuitByQulacs, CircuitByTensor
 
 node_num = 23  # even
 node_degree = [2, 4, 6, 8]
