@@ -32,6 +32,11 @@ class CircuitByTensor(Backend):
         self._element_to_graph = None
         self._pargs = None
         self._expectation_path = []
+        self._element_expectation = dict()
+
+    @property
+    def element_expectation(self):
+        return self._element_expectation
 
     def get_operator(self, element, qubit_num):
         pass
@@ -77,9 +82,10 @@ class CircuitByTensor(Backend):
             ZZ = qu.pauli('Z') & qu.pauli('Z')
             where = (node_to_qubit[original_e[0]], node_to_qubit[original_e[1]])
             exp_res = circ.local_expectation(ZZ, where, optimize=self._opt)
-        return exp_res.real * weight
+        return weight, exp_res.real
 
     def expectation_calculation(self, p=None):
+        self._element_expectation = {}
         if self._is_parallel:
             return self.expectation_calculation_parallel(p)
         else:
@@ -94,7 +100,10 @@ class CircuitByTensor(Backend):
         os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_num)
         res = 0
         for item in self._element_to_graph.items():
-            res += self.get_expectation(item, p)
+            w_i, exp_i = self.get_expectation(item, p)
+            if isinstance(item[0], tuple):
+                self._element_expectation[item[0]] = exp_i
+            res += w_i * exp_i
 
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)

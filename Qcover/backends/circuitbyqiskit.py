@@ -36,6 +36,10 @@ class CircuitByQiskit(Backend):
         self._expectation_path = []
         self._element_expectation = dict()
 
+    @property
+    def element_expectation(self):
+        return self._element_expectation
+
     def get_operator(self, element, qubit_num):
         if self._expectation_calc_method == "statevector":
             op = 1

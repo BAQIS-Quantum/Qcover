@@ -27,6 +27,7 @@ __version__ = ""
 exec(open('Qcover/version.py').read())
 
 requirements = [
+    "numpy>=1.19.3",
     "networkx==2.5.1",
     "qiskit==0.31.0",
     "projectq==0.6.1.post0",

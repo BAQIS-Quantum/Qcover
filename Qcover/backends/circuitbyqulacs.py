@@ -33,6 +33,11 @@ class CircuitByQulacs(Backend):
         self._element_to_graph = None
         self._pargs = None
         self._expectation_path = []
+        self._element_expectation = dict()
+
+    @property
+    def element_expectation(self):
+        return self._element_expectation
 
     @staticmethod
     def get_operator(element, qubit_num):
@@ -100,9 +105,10 @@ class CircuitByQulacs(Backend):
         circ.update_quantum_state(state)
         exp_res = op.get_expectation_value(state)
 
-        return weight * exp_res
+        return weight, exp_res
 
     def expectation_calculation(self, p=None):
+        self._element_expectation = {}
         if self._is_parallel:
             return self.expectation_calculation_parallel(p)
         else:
@@ -111,7 +117,10 @@ class CircuitByQulacs(Backend):
     def expectation_calculation_serial(self, p=None):
         res = 0
         for item in self._element_to_graph.items():
-            res += self.get_expectation(item, p)
+            w_i, exp_i = self.get_expectation(item, p)
+            if isinstance(item[0], tuple):
+                self._element_expectation[item[0]] = exp_i
+            res += w_i * exp_i
 
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
