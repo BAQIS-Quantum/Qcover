@@ -46,7 +46,7 @@ for example, if you want to using Qcover to solve a max-cut problem, just coding
     node_num, degree = 6, 3
     p = 1
     mxt = MaxCut(node_num=node_num, node_degree=degree)
-    ising_g = mxt.run()
+    ising_g, shift = mxt.run()
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
     optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     qc = Qcover(ising_g, p=p, optimizer=optc, backend=qiskit_bc)
