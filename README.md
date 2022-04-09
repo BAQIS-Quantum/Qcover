@@ -20,7 +20,7 @@ More example codes and tutorials can be found in the tests folder here on GitHub
 # Examples
 1. Using algorithm core module to generate the ising random weighted graph and calculate it's Hamiltonian expectation
     ```python
-    from tests.core_without_RQAOA import Qcover
+    from Qcover.core import Qcover
     from Qcover.backends import CircuitByQulacs
     from Qcover.optimizers import COBYLA
     
@@ -39,14 +39,14 @@ More example codes and tutorials can be found in the tests folder here on GitHub
 for example, if you want to using Qcover to solve a max-cut problem, just coding below:
     ```python
     import numpy as np
-    from tests.core_without_RQAOA import Qcover
+    from Qcover.core import Qcover
     from Qcover.backends import CircuitByQiskit
     from Qcover.optimizers import COBYLA
     from Qcover.applications.max_cut import MaxCut
     node_num, degree = 6, 3
     p = 1
     mxt = MaxCut(node_num=node_num, node_degree=degree)
-    ising_g = mxt.run()
+    ising_g, shift = mxt.run()
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
     optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     qc = Qcover(ising_g, p=p, optimizer=optc, backend=qiskit_bc)
@@ -59,7 +59,7 @@ state expectation with Qcover, you can use the following code
     ```python
     import numpy as np
     import networkx as nx
-    from tests.core_without_RQAOA import Qcover
+    from Qcover.core import Qcover
     from Qcover.backends import CircuitByTensor
     from Qcover.optimizers import COBYLA
 
