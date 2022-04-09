@@ -1,3 +1,15 @@
+# This code is part of Qcover.
+#
+# (C) Copyright BAQIS 2021, 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 import logging
 import time
 import numpy as np
@@ -24,7 +36,7 @@ class MinimumVertexCover:
                  node_num: int = None,
                  node_degree: int = 3,
                  weight_range: int = 10,
-                 P: int = None,
+                 P: float = None,
                  seed: int = None):
         """
         Args:
@@ -97,7 +109,7 @@ class MinimumVertexCover:
             Q[i][i] = -weight[i] - P * node degree[i]
         """
         adj_mat = nx.adjacency_matrix(self._graph).A
-        qubo_mat = adj_mat.copy()
+        qubo_mat = np.array(adj_mat, dtype='float64')
         
         for i in range(self._node_num):
             qubo_mat[i][i] = 1 - self._P * self._graph.degree[i] #node degree
@@ -105,11 +117,10 @@ class MinimumVertexCover:
                 if i == j:
                     continue
                 elif abs(adj_mat[i][j] - 0.) <= 1e-8:
-                    qubo_mat[i][j] = 0
+                    qubo_mat[i][j] = 0.0
                 else:
-                    qubo_mat[i][j] = self._P /2
-                    qubo_mat[i][j] /= 2.0
-        
+                    qubo_mat[i][j] = self._P / 2.0
+                    
         shift = self._P
         
         return qubo_mat, shift

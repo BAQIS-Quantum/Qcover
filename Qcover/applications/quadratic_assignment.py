@@ -1,3 +1,15 @@
+# This code is part of Qcover.
+#
+# (C) Copyright BAQIS 2021, 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 import logging
 import numpy as np
 import random
@@ -29,7 +41,7 @@ class QadraticAssignment:
                  n: int = None,
                  weight_range: tuple = (1, 100),
                  element_set: np.array = None, #constriants from subsets
-                 P: int = None,
+                 P: float = None,
                  seed: int = None):
         """
         Args:
@@ -109,34 +121,27 @@ class QadraticAssignment:
             Q[(j-1)*n+i][(i-1)*n+j] = flow[j][i] * distance[i][j] + P
             Q[i][i] = -2 * P
         """
-        matrix_dimension = self._n*self._n
-        q_mat = -2 * self._P*np.eye(matrix_dimension)
+        matrix_dimension = self._n * self._n
+        q_mat = -2.0 * self._P * np.eye(matrix_dimension, dtype='float64')
         for i in range(matrix_dimension):
            for j in range(matrix_dimension):
                x, y = i // self._n, j // self._n 
-               idl, idr = x * self._n, (x + 1) * self._n- 1 
+               idl, idr = x * self._n, (x + 1.0) * self._n - 1.0 
                if (i >= idl and i <= idr) and (j >= idl and j <= idr):
                    if i == j:
-                       q_mat[i][i] = -2 * self._P
+                       q_mat[i][i] = -2.0 * self._P
                    else:
                        q_mat[i][j] = self._P
                else:
                    for l in range(self._n):
                        for k in range(self._n):
                             q_mat[x*self._n+k][y*self._n+l] = self._flow[x][y]*self._distance[k][l] 
-                            if self._flow[x][y]*self._distance[k][l] == 0:
+                            if self._flow[x][y]*self._distance[k][l] == 0.0:
                                 q_mat[x*self._n+k][y*self._n+l] = self._P
         
-        qubo_mat = q_mat.copy()
-        for i in range(matrix_dimension):
-            for j in range(matrix_dimension):
-                if i == j:
-                    continue
-                qubo_mat[i][j] /= 2.0
-                
-        shift = 2 * self._P
+        shift = 2.0 * self._P
                
-        return qubo_mat, shift
+        return q_mat, shift
 
     def quadratic_assignment_value(self, x,w): 
         """Compute the value of a quadratic assignment.

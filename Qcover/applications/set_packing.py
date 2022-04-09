@@ -1,3 +1,15 @@
+# This code is part of Qcover.
+#
+# (C) Copyright BAQIS 2021, 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 import logging
 import numpy as np
 import random
@@ -28,7 +40,7 @@ class SetPacking:
                  element_set: list = None, #constriants from subsets
                  weight: list = None,
                  P: float = None,
-                 seed: int = None):
+                 seed: int = None)-> None:
         """
         Args:
             element_list (list): a list of elements 
@@ -54,15 +66,15 @@ class SetPacking:
             
             self._length = length
             self._weight_range = weight_range
-            #self._weight = weight
-            self._weight = np.ones((self._length,), dtype=int)
+            self._weight = weight
+            # self._weight = np.ones((self._length,), dtype=int)
             self._element_set = element_set
             self._constraints = self.constraints()
             self._P = P
-            self._seed = seed
+            # self._seed = seed
             self._element_list = random_number_list(n=self._length,
                                                    weight_range=self._weight_range,
-                                                   seed=self._seed) 
+                                                   seed=seed) #self._seed
 
         else:
             for n in [element_list]:
@@ -70,9 +82,9 @@ class SetPacking:
                     self._element_list = pd.factorize(element_list)[0] 
             self._length = len(self._element_list)
             self._weight_range = (np.abs(self._element_list).min(), np.abs(self._element_list).max())
-            self._seed = seed
-            #self._weight = weight
-            self._weight = np.ones((self._length,), dtype=int)
+            # self._seed = seed
+            self._weight = weight
+            # self._weight = np.ones((self._length,), dtype=int)
             self._element_set = element_set
             self._constraints = self.constraints()
             self._P = P
@@ -122,25 +134,25 @@ class SetPacking:
         Q[i][j] = (P * constraints[i][j])/2 
         Q[i][i] = -weight[i] 
         """
-        # set_mat = np.eye(self._length)
-        # q_mat = np.array(set_mat, dtype='float64')
-        q_mat = np.eye(self._length, dtype='float64')
+        set_mat = np.eye(self._length)
+        q_mat = np.array(set_mat, dtype='float64')
+        # q_mat = np.eye(self._length, dtype='float64')
         
         for i in range(self._length):
             q_mat[i][i] = -self._weight[i]
             for j in range(self._length):
-                if i == j:
+                if i==j: 
                     continue
                 elif abs(self._constraints[i][j] - 0.) <= 1e-8:
                     q_mat[i][j] = 0.0
                 else:
-                    q_mat[i][j] = self._P/2.0
+                    q_mat[i][j] = self._P/2.0 
         
         shift = 0.0
 
         return q_mat, shift
 
-    def set_packing_value(self, x, w):
+    def set_packing_value(self, x,w): 
         """Compute the value of a partition.
 
         Args:
@@ -164,18 +176,3 @@ class SetPacking:
         ising_mat = get_ising_matrix(qubo_mat)
         sp_graph = get_weights_graph(ising_mat)
         return sp_graph, self._shift
-    
-if __name__ == '__main__':
-    
-    
-    element_list = ['a','b','c','d']
-    element_list_len = len(element_list)
-    element_weight = [1.0,1.0,1.0,1.0]
-    # element_weight = np.ones((element_list_len,), dtype=int)
-    subsets = [[1.0,2.0],[1.0,3.0,4.0]] 
-    penalty = 6.0
-    
-   
-    sp = SetPacking(element_list=element_list,length=element_list_len, weight=element_weight, element_set=subsets, P=penalty)
-    print(sp.get_Qmatrix())
-    print(sp.constraints())

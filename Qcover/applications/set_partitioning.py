@@ -1,3 +1,15 @@
+# This code is part of Qcover.
+#
+# (C) Copyright BAQIS 2021, 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 import logging
 import numpy as np
 import random
@@ -26,7 +38,7 @@ class SetPartitioning:
                  weight_range: tuple = (1, 100),
                  element_set: np.array = None, #constriants from subsets
                  weight: np.array = None,
-                 P: int = None,
+                 P: float = None,
                  seed: int = None):
         """
         Args:
@@ -92,12 +104,12 @@ class SetPartitioning:
         If the element in the list is included in the subset, 
         the constraints matrix entry is 1, vice versa
         """
-        constraints_mat = np.zeros((self._length,self._length), dtype=int)
+        constraints_mat = np.zeros((self._length,self._length), dtype='float64')
         for i in range(self._length): #list length
             for j in range(self._length):
                 for a in range(len(self._element_set)): #number of constraints
                     if i+1 in self._element_set[a] and j+1 in self._element_set[a]: 
-                        constraints_mat[a][i] = 1
+                        constraints_mat[a][i] = 1.0
         return constraints_mat #binary matrix
 
     def update_args(self, length, weight,constraints):
@@ -121,17 +133,16 @@ class SetPartitioning:
         Q[i][i] = -weight[i] - P * number of ones in the ith column of the constraint matrix
         """
         
-        q_mat = np.eye(self._length)
+        q_mat = np.eye(self._length, dtype='float64')
         
         for i in range(self._length):
                 q_mat[i][i] = self._weight[i] - self._P * np.sum(self._constraints, axis = 0)[i]                           
                 for j in range(i):
-                    r = 0 
+                    r = 0.0
                     for a in range(len(self._element_set)): #number of constraints
                         if i+1 in self._element_set[a] and j+1 in self._element_set[a]: 
-                            r += 1 #number of times elements i and j appear in the same constraint
-                            q_mat[i][j] = self._P  * r
-                            q_mat[i][j] /= 2.0
+                            r += 1.0 #number of times elements i and j appear in the same constraint
+                            q_mat[i][j] = self._P * r
                             q_mat[j][i] = q_mat[i][j]
         
         shift = self._P

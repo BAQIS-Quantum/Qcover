@@ -1,3 +1,15 @@
+# This code is part of Qcover.
+#
+# (C) Copyright BAQIS 2021, 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 import time
 import logging
 import random
@@ -94,16 +106,9 @@ class GraphColoring:
                     if adj_mat[x][y] != 0:
                         for l in range(self._color_num):
                             qubo_mat[x*self._color_num + l][y*self._color_num + l] = self._P/2
-        
-        q_mat = qubo_mat.copy()
-        for i in range(Qmat_length):
-            for j in range(Qmat_length):
-               if i == j:
-                   continue
-               q_mat[i][j] /= 2.0
                
         shift = self._P
-        return q_mat, shift
+        return qubo_mat, shift
 
     def run(self):
         if self._qmatrix is None:

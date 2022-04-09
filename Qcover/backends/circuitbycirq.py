@@ -149,8 +149,11 @@ class CircuitByCirq(Backend):
 
         pool.terminate()  # pool.close()
         pool.join()
+        res = 0
+        for it in circ_res[0]:
+            res += it[0] * it[1]
 
-        res = sum(circ_res[0])
+        # res = sum(circ_res[0])
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
         return res

@@ -21,7 +21,7 @@ class CircuitByQiskit(Backend):
     def __init__(self,
                  nodes_weight: list = None,
                  edges_weight: list = None,
-                 expectation_calc_method: str = "statevector",
+                 expectation_calc_method: str = "statevector", # or sample
                  is_parallel: bool = None) -> None:
         """initialize a instance of CircuitByQiskit"""
         super(CircuitByQiskit, self).__init__()
@@ -122,6 +122,7 @@ class CircuitByQiskit(Backend):
             return self.expectation_calculation_serial(p)
 
     def expectation_calculation_serial(self, p=None):
+
         cpu_num = cpu_count()
         os.environ['OMP_NUM_THREADS'] = str(cpu_num)
         os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)
@@ -129,12 +130,14 @@ class CircuitByQiskit(Backend):
         os.environ['VECLIB_MAXIMUM_THREADS'] = str(cpu_num)
         os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_num)
         res = 0
+        # st = time.time()
         for item in self._element_to_graph.items():
             w_i, exp_i = self.get_expectation(item, p)
             if isinstance(item[0], tuple):
                 self._element_expectation[item[0]] = exp_i
             res += w_i * exp_i
-
+        # ed = time.time()
+        # print("exp one cost:", ed - st)
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
         return res
@@ -155,8 +158,11 @@ class CircuitByQiskit(Backend):
 
         pool.terminate()  # pool.close()
         pool.join()
+        res = 0
+        for it in circ_res[0]:
+            res += it[0] * it[1]
 
-        res = sum(circ_res[0])
+        # res = sum(circ_res[0])
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
         return res

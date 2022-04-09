@@ -1,6 +1,5 @@
 import os
 import time
-import warnings
 import itertools
 
 from collections import defaultdict, Callable
@@ -13,6 +12,8 @@ import networkx as nx
 from qulacs import Observable, QuantumCircuit, QuantumState
 from qulacs.gate import RX, RZ, CNOT, merge
 from Qcover.backends import Backend
+import warnings
+warnings.filterwarnings("ignore")
 
 
 class CircuitByQulacs(Backend):
@@ -142,8 +143,10 @@ class CircuitByQulacs(Backend):
 
         pool.terminate()  # pool.close()
         pool.join()
-
-        res = sum(circ_res[0])
+        res = 0
+        for it in circ_res[0]:
+            res += it[0] * it[1]
+        # res = sum(circ_res[0])
         print("Total expectation of original graph is: ", res)
         self._expectation_path.append(res)
         return res

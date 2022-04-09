@@ -28,9 +28,9 @@ class Backend(ABC):
     #     self._element_to_graph = None
     #     self._pargs = None
 
-    @abstractmethod
-    def get_operator(self, *args):
-        pass
+    # @abstractmethod
+    # def get_operator(self, *args):
+    #     pass
 
     @abstractmethod
     def get_expectation(self, *args):

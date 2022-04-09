@@ -1,3 +1,15 @@
+# This code is part of Qcover.
+#
+# (C) Copyright BAQIS 2021, 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 import logging
 import numpy as np
 import random
@@ -30,7 +42,7 @@ class QadraticKnapsack:
                  # weight: np.array = None,
                  element_set: list = None, #constriants from subsets
                  b: list = None,
-                 P: int = None,
+                 P: float = None,
                  slack: int = 3,
                  seed: int = None):
         """
@@ -109,7 +121,7 @@ class QadraticKnapsack:
         A_list =[]
         y = list([int(i) for i in bin(self._slack)[2:]]) #slack variable in binary
         y.reverse()
-        if self._slack % 2 ==0:
+        if self._slack % 2 == 0.0:
             y = list([int(i) for i in bin(self._slack+1)[2:]])
         slack_cof1 = np.multiply(np.array(y),np.float_power(2, np.arange(len(y)))).tolist()
         A_list = list(self._element_set)
@@ -134,7 +146,7 @@ class QadraticKnapsack:
             
         """
         matrix_dimension = self._constraints.shape[0]
-        q_mat = np.eye(matrix_dimension)
+        q_mat = np.eye(matrix_dimension, dtype='float64')
         
         extended_v = [[] for i in range(matrix_dimension)]
         extended_v[0:self._length] = list(self._v)
@@ -144,14 +156,13 @@ class QadraticKnapsack:
             extended_v[j] = [0]*(matrix_dimension)
 
         for i in range(matrix_dimension):
-            q_mat[i][i] = -extended_v[i][i] + self._P*((self._constraints[i])**2 - 2*self._b[0]*self._constraints[i]) 
+            q_mat[i][i] = -extended_v[i][i] + self._P*((self._constraints[i])**2 - 2.0*self._b[0]*self._constraints[i]) 
             for j in range(matrix_dimension):
                 if i == j:
                     continue
                 q_mat[i][j] = -extended_v[i][j] + self._P*(self._constraints[i]*self._constraints[j])
-                q_mat[i][j] /= 2.0
         
-        shift = self._P * (-2 * self._slack * self._b[0] + self._b[0]**2)
+        shift = self._P * (-2.0 * self._slack * self._b[0] + self._b[0]**2)
         return q_mat, shift
 
     def quadratic_knapsack_value(self, x,w): 

@@ -5,6 +5,8 @@ import numpy as np
 from scipy import optimize as opt
 from Qcover.optimizers import Optimizer
 from Qcover.exceptions import ArrayShapeError
+import warnings
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 

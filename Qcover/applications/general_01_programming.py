@@ -1,3 +1,15 @@
+# This code is part of Qcover.
+#
+# (C) Copyright BAQIS 2021, 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 import logging
 import numpy as np
 import random
@@ -30,7 +42,7 @@ class General01Programming:
                  element_set: list = None,  # coefficient of the constraints
                  signs: list = None,
                  b: np.array = None,
-                 P: int = None,
+                 P: float = None,
                  slack_1: int = 3,
                  seed: int = None):
         """
@@ -157,12 +169,12 @@ class General01Programming:
         if slack_2 % 2 == 0:
             z = list([int(i) for i in bin(slack_2 + 1)[2:]])
         # the coefficients of new binary variables resulted from the slack variable
-        slack_cof2 = (-1 * np.multiply(np.array(z), np.float_power(2, np.arange(len(z))))).tolist()
+        slack_cof2 = (-1.0 * np.multiply(np.array(z), np.float_power(2, np.arange(len(z))))).tolist()
         A_list[k] = list(self._element_set[k])
 
-        A_list[l].extend([0] * (len(slack_cof1) + len(slack_cof2)))
-        A_list[j].extend([0] * (len(slack_cof2)))
-        A_list[k].extend([0] * (len(slack_cof1)))
+        A_list[l].extend([0.0] * (len(slack_cof1) + len(slack_cof2)))
+        A_list[j].extend([0.0] * (len(slack_cof2)))
+        A_list[k].extend([0.0] * (len(slack_cof1)))
         A_list[k].extend(int(i) for i in slack_cof2)
 
         return np.array(A_list)
@@ -187,7 +199,7 @@ class General01Programming:
             Q[i][i] = -weight[i] + P * (A(T)A[i][i] - 2A(T)b[i])
         """
         matrix_dimension = self._constraints.shape[1]
-        q_mat = np.eye(matrix_dimension)
+        q_mat = np.eye(matrix_dimension, dtype='float64')
 
         extended_weight = list(self._weight)
         extended_weight.extend([0] * (self._constraints.shape[1] - self._length))
@@ -196,12 +208,11 @@ class General01Programming:
         AT_b = np.matmul(np.transpose(self._constraints), self._b)  # A(T)b
 
         for i in range(matrix_dimension):
-            q_mat[i][i] = -extended_weight[i] + self._P * (A_matrix_mul[i][i] - 2 * AT_b[i])
+            q_mat[i][i] = -extended_weight[i] + self._P * (A_matrix_mul[i][i] - 2.0 * AT_b[i])
             for j in range(matrix_dimension):
                 if i == j:
                     continue
                 q_mat[i][j] = self._P * A_matrix_mul[i][j]
-                q_mat[i][j] /= 2.0
         
         shift = self._P * np.matmul(np.transpose(self._b), self._b)
 
@@ -231,3 +242,4 @@ class General01Programming:
         ising_mat = get_ising_matrix(qubo_mat)
         gp_graph = get_weights_graph(ising_mat)
         return gp_graph, self._shift
+    
