@@ -57,8 +57,12 @@ class ArrayShapeError(QcoverError):
         # print("The problem is transformed into a dense graph, which is difficult to be solved effectively by Qcover")
 
 
-
-class QQcoverUserConfigError(QcoverError):
+class UserConfigError(QcoverError):
     """Raised when an error is encountered reading a user config file."""
+    def __init__(self, msg):
+        self.name = "UserConfigError: "
+        self.message = msg
+        super().__init__(msg)
 
-    message = "User config invalid"
+    def __str__(self):
+        return self.name + self.message

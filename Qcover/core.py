@@ -29,7 +29,7 @@ import numpy as np
 import networkx as nx
 from Qcover.optimizers import Optimizer, COBYLA
 from Qcover.backends import Backend, CircuitByQiskit, CircuitByTensor
-from Qcover.exceptions import GraphTypeError
+from Qcover.exceptions import GraphTypeError, UserConfigError
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -363,7 +363,15 @@ class Qcover:
         res = {"Optimal parameter value": x, "Expectation of Hamiltonian": fun, "Total iterations": nfev}
         return res
 
-    def run_rqaoa(self, node_threshold):
+    def run_rqaoa(self, node_threshold, iter_time):
+        try:
+            if iter_time < 1:
+                raise UserConfigError("iter_time should be a value greater than 1")
+        except UserConfigError as e:
+            print(e)
+            print("iter_time will be set to 1")
+            iter_time = 1
+
         node_sol = len(self._simple_graph)
         current_g = self._simple_graph
         node_num = len(current_g.nodes)
@@ -373,12 +381,20 @@ class Qcover:
             self._backend._nodes_weight = nodes_weight
             self._backend._edges_weight = edges_weight
 
-            self._optimizer.optimize(objective_function=self.calculate)  # x, fun, nfev =
-            exp_sorted = sorted(self._backend.element_expectation.items(), key=lambda item: abs(item[1]), reverse=True)
-            u, v = exp_sorted[0][0]
-            exp_value = abs(exp_sorted[0][1])
-            if exp_value - 1e-8 < 0.5:
-                break
+            optization_rounds = iter_time
+            while optization_rounds > 0:
+                self._optimizer.optimize(objective_function=self.calculate)  # x, fun, nfev =
+                exp_sorted = sorted(self._backend.element_expectation.items(), key=lambda item: abs(item[1]), reverse=True)
+                u, v = exp_sorted[0][0]
+                exp_value = abs(exp_sorted[0][1])
+                # print("iteration on %d, max expectation is %lf" % (optization_rounds, exp_value))
+                # print("--------------------------------------")
+                if exp_value - 1e-8 >= 0.5:
+                    break
+                optization_rounds -= 1
+
+            # if exp_value < 0.5:  # if the relation between two node is small, then run search method
+            #     break
 
             correlation = 1 if exp_sorted[0][1] - 1e-8 > 0 else -1
             pathg.add_edge(u, v, weight=correlation)
@@ -410,7 +426,7 @@ class Qcover:
             solution = basic_sol
         return solution
 
-    def run(self, node_num=None, edge_num=None, is_parallel=False, mode='QAQA', node_threshold=1):
+    def run(self, node_num=None, edge_num=None, is_parallel=False, mode='QAQA', node_threshold=1, iter_time=5):
 
         if self._simple_graph is None:
             if node_num is None or edge_num is None:
@@ -423,7 +439,7 @@ class Qcover:
         if mode == 'QAQA':
             res = self.run_qaoa()
         else:
-            res = self.run_rqaoa(node_threshold)
+            res = self.run_rqaoa(node_threshold, iter_time)
 
         return res
 
@@ -498,20 +514,20 @@ if __name__ == '__main__':
 
 
 
-    # p = 1
-    # g = nx.Graph()
+    p = 1
+    g = nx.Graph()
     # nodes = [(0, 0), (1, 0), (2, 0)]
     # edges = [(0, 1, 1), (1, 2, -1)]
 
-    # nodes = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
-    # edges = [(0, 1, -1), (1, 2, -1), (2, 3, -1), (3, 4, -1)]
+    nodes = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
+    edges = [(0, 1, 1), (1, 2, 1), (2, 3, -1), (3, 4, -1)]
 
-    # for nd in nodes:
-    #     u, w = nd[0], nd[1]
-    #     g.add_node(int(u), weight=int(w))
-    # for ed in edges:
-    #     u, v, w = ed[0], ed[1], ed[2]
-    #     g.add_edge(int(u), int(v), weight=int(w))
+    for nd in nodes:
+        u, w = nd[0], nd[1]
+        g.add_node(int(u), weight=int(w))
+    for ed in edges:
+        u, v, w = ed[0], ed[1], ed[2]
+        g.add_edge(int(u), int(v), weight=int(w))
 
     # from Qcover.applications import MaxCut
     # mxt = MaxCut(g)
@@ -520,19 +536,19 @@ if __name__ == '__main__':
     #10 6 0.028  100 6 134.56/ce
     # g, shift = mxt.run()
 
-    # optc = COBYLA(options={'tol': 1e-3, 'disp': True})
+    optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     # qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
-    # from Qcover.backends import CircuitByQton, CircuitByQulacs, CircuitByProjectq, CircuitByTensor, CircuitByCirq
-    # qulacs_bc = CircuitByQulacs()
-    # cirq_bc = CircuitByCirq()
-    # projectq_bc = CircuitByProjectq()
-    # ts = CircuitByTensor()
-    # qt = CircuitByQton(expectation_calc_method="tensor")  #
-    #
-    # qc = Qcover(g, p,
-    #               optimizer=optc,
-    #               backend=qt)  #qiskit_bc, ,qulacs_bc
-    #
+    from Qcover.backends import CircuitByQton, CircuitByQulacs, CircuitByProjectq, CircuitByTensor, CircuitByCirq
+    qulacs_bc = CircuitByQulacs()
+    cirq_bc = CircuitByCirq()
+    projectq_bc = CircuitByProjectq()
+    ts = CircuitByTensor()
+    qt = CircuitByQton()  #expectation_calc_method="tensor"
+
+    qc = Qcover(g, p,
+                  optimizer=optc,
+                  backend=qt)  #qiskit_bc, ,qulacs_bc
+
     # st = time.time()
     # sol = qc.run(is_parallel=False, mode='QAQA')  #True
     # ed = time.time()
@@ -542,67 +558,66 @@ if __name__ == '__main__':
     # out_count = qc.backend.get_result_counts(params, g)
     # import matplotlib.pyplot as plt
     # from qiskit.visualization import plot_histogram
-    #
     # plot_histogram(out_count)
     # plt.show()
+
+    st = time.time()
+    sol = qc.run(mode='RQAQA', node_threshold=1, iter_time=3)
+    ed = time.time()
+    print("time cost by RQAOA is:", ed - st)
+    print("solution is:", sol)
+
+
+    # p = 1
+    # from Qcover.applications import MaxCut
+    # node_num = [10, 50, 100, 500, 1000]
+    # node_d = [3, 4, 5, 6]
+    # for i in node_num:
+    #     pt, st = [], []
+    #     pv, sv = [], []
+    #     for nd in node_d:
+    #         mxt = MaxCut(node_num=i, node_degree=nd)
+    #         g, shift = mxt.run()
+    #         from Qcover.backends import CircuitByQton
+    #         qt = CircuitByQton(expectation_calc_method="tensor")  #
+    #         optc = COBYLA(options={'tol': 1e-3, 'disp': True})
+    #         qct = Qcover(g, p,
+    #                     optimizer=optc,
+    #                     backend=qt)  # qiskit_bc, ,qulacs_bc
     #
-    # st = time.time()
-    # sol = qc.run(mode='RQAQA', node_threshold=1)
-    # ed = time.time()
-    # print("time cost by RQAOA is:", ed - st)
-    # print("solution is:", sol)
-
-
-    p = 1
-    from Qcover.applications import MaxCut
-    node_num = [10, 50, 100, 500, 1000]
-    node_d = [3, 4, 5, 6]
-    for i in node_num:
-        pt, st = [], []
-        pv, sv = [], []
-        for nd in node_d:
-            mxt = MaxCut(node_num=i, node_degree=nd)
-            g, shift = mxt.run()
-            from Qcover.backends import CircuitByQton
-            qt = CircuitByQton(expectation_calc_method="tensor")  #
-            optc = COBYLA(options={'tol': 1e-3, 'disp': True})
-            qct = Qcover(g, p,
-                        optimizer=optc,
-                        backend=qt)  # qiskit_bc, ,qulacs_bc
-
-            t1 = time.time()
-            sol = qct.run(is_parallel=False, mode='QAQA')  # True
-            t2 = time.time()
-            st.append(t2 - t1)
-
-            t1 = time.time()
-            sol = qct.run(is_parallel=True, mode='QAQA')  #
-            t2 = time.time()
-            pt.append(t2 - t1)
-
-            qcv = Qcover(g, p,
-                        optimizer=COBYLA(options={'tol': 1e-3, 'disp': True}),
-                        backend=CircuitByQton())  # qiskit_bc, ,qulacs_bc
-            t1 = time.time()
-            sol = qcv.run(is_parallel=False, mode='QAQA')  # True
-            t2 = time.time()
-            sv.append(t2 - t1)
-
-            t1 = time.time()
-            sol = qcv.run(is_parallel=True, mode='QAQA')  #
-            t2 = time.time()
-            pv.append(t2 - t1)
-
-        import matplotlib.pyplot as plt
-        plt.figure()
-        plt.plot(node_d, pt, "ob-", label="parallel tensor")
-        plt.plot(node_d, st, "^r-", label="serial tensor")
-        plt.plot(node_d, pv, "*g-", label="parallel statevector")
-        plt.plot(node_d, sv, "dy-", label="serial statevector")
-        plt.ylabel('Time cost')
-        plt.xlabel('node degree')
-        plt.title("node is %d" % i)
-        plt.legend()
-        plt.savefig('/public/home/humengjun/Qcover/result_log/qton_tensor/%d.png' % i)
-        plt.close('all')
+    #         t1 = time.time()
+    #         sol = qct.run(is_parallel=False, mode='QAQA')  # True
+    #         t2 = time.time()
+    #         st.append(t2 - t1)
+    #
+    #         t1 = time.time()
+    #         sol = qct.run(is_parallel=True, mode='QAQA')  #
+    #         t2 = time.time()
+    #         pt.append(t2 - t1)
+    #
+    #         qcv = Qcover(g, p,
+    #                     optimizer=COBYLA(options={'tol': 1e-3, 'disp': True}),
+    #                     backend=CircuitByQton())  # qiskit_bc, ,qulacs_bc
+    #         t1 = time.time()
+    #         sol = qcv.run(is_parallel=False, mode='QAQA')  # True
+    #         t2 = time.time()
+    #         sv.append(t2 - t1)
+    #
+    #         t1 = time.time()
+    #         sol = qcv.run(is_parallel=True, mode='QAQA')  #
+    #         t2 = time.time()
+    #         pv.append(t2 - t1)
+    #
+    #     import matplotlib.pyplot as plt
+    #     plt.figure()
+    #     plt.plot(node_d, pt, "ob-", label="parallel tensor")
+    #     plt.plot(node_d, st, "^r-", label="serial tensor")
+    #     plt.plot(node_d, pv, "*g-", label="parallel statevector")
+    #     plt.plot(node_d, sv, "dy-", label="serial statevector")
+    #     plt.ylabel('Time cost')
+    #     plt.xlabel('node degree')
+    #     plt.title("node is %d" % i)
+    #     plt.legend()
+    #     plt.savefig('/public/home/humengjun/Qcover/result_log/qton_tensor/%d.png' % i)
+    #     plt.close('all')
 
