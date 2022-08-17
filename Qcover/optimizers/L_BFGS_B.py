@@ -9,7 +9,7 @@ from Qcover.exceptions import ArrayShapeError
 logger = logging.getLogger(__name__)
 
 
-class L_BFGS_B:
+class L_BFGS_B(Optimizer):
     """
     L-BFGS-B: a numerical optimization method for constrained problems
 

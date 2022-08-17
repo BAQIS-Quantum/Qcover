@@ -27,6 +27,7 @@ from typing import Optional
 from collections import defaultdict
 import numpy as np
 import networkx as nx
+from Qcover.utils import get_graph_weights
 from Qcover.optimizers import Optimizer, COBYLA
 from Qcover.backends import Backend, CircuitByQiskit, CircuitByTensor
 from Qcover.exceptions import GraphTypeError, UserConfigError
@@ -43,20 +44,20 @@ class Qcover:
                  graph: nx.Graph = None,
                  p: int = 1,
                  optimizer: Optional[Optimizer] = COBYLA(),
-                 backend: Optional[Backend] = CircuitByQiskit()
+                 backend: Optional[Backend] = CircuitByQiskit(),
+                 research_obj: str = "QAOA"
                  ) -> None:
 
         assert graph is not None
         self._simple_graph = graph
         self._p = p
+        self._research_obj = research_obj
         self._backend = backend
         self._backend._p = p
+        self._backend._origin_graph = graph
+        self._backend._research = research_obj
         self._optimizer = optimizer
         self._optimizer._p = p
-
-        # self._nodes_weight = []
-        # self._edges_weight = []
-        # self._path = dict()
 
     @property
     def p(self):
@@ -176,22 +177,22 @@ class Qcover:
                 g.add_edge(item[0], item[1], weight=item[2])
         return g
 
-    @staticmethod
-    def get_graph_weights(graph):
-        """
-        get the weights of nodes and edges in graph
-        Args:
-            graph (nx.Graph): graph to get weight of nodes and edges
-        Return:
-            node weights form is dict{nid1: node_weight}, edges weights form is dict{(nid1, nid2): edge_weight}
-        """
-        nodew = nx.get_node_attributes(graph, 'weight')
-        edw = nx.get_edge_attributes(graph, 'weight')
-        edgew = edw.copy()
-        for key, val in edw.items():
-            edgew[(key[1], key[0])] = val
-
-        return nodew, edgew
+    # @staticmethod
+    # def get_graph_weights(graph):
+    #     """
+    #     get the weights of nodes and edges in graph
+    #     Args:
+    #         graph (nx.Graph): graph to get weight of nodes and edges
+    #     Return:
+    #         node weights form is dict{nid1: node_weight}, edges weights form is dict{(nid1, nid2): edge_weight}
+    #     """
+    #     nodew = nx.get_node_attributes(graph, 'weight')
+    #     edw = nx.get_edge_attributes(graph, 'weight')
+    #     edgew = edw.copy()
+    #     for key, val in edw.items():
+    #         edgew[(key[1], key[0])] = val
+    #
+    #     return nodew, edgew
 
     def generate_subgraph(self, graph, dtype: str, p):
         """
@@ -207,7 +208,7 @@ class Qcover:
             print("Error: wrong dtype, dtype should be node or edge")
             return None
 
-        nodes_weight, edges_weight = self.get_graph_weights(graph)
+        nodes_weight, edges_weight = get_graph_weights(graph)
 
         subg_dict = defaultdict(list)
         if dtype == 'node':
@@ -320,6 +321,7 @@ class Qcover:
         """
         p = self._p if p is None else p
         element_to_graph = self.graph_decomposition(graph=self._simple_graph, p=p)
+        # element_to_graph = {(0, 1):self._simple_graph}
 
         # checking graph type of given problem
         if not isinstance(self._backend, CircuitByTensor):
@@ -354,16 +356,15 @@ class Qcover:
             results of the problem, which including the optimal parameters of the circuit model,
             the optimal expectation value and the number of times the optimizer iterates
         """
-        nodes_weight, edges_weight = self.get_graph_weights(self._simple_graph)
-        self._backend._nodes_weight = nodes_weight
-        self._backend._edges_weight = edges_weight
+        # nodes_weight, edges_weight = get_graph_weights(self._simple_graph)
+        # self._backend._nodes_weight = nodes_weight
+        # self._backend._edges_weight = edges_weight
 
         x, fun, nfev = self._optimizer.optimize(objective_function=self.calculate)
-        # x *= 2
         res = {"Optimal parameter value": x, "Expectation of Hamiltonian": fun, "Total iterations": nfev}
         return res
 
-    def run_rqaoa(self, node_threshold, iter_time):
+    def run_rqaoa(self, node_threshold, iter_time, corr_method):
         try:
             if iter_time < 1:
                 raise UserConfigError("iter_time should be a value greater than 1")
@@ -372,21 +373,40 @@ class Qcover:
             print("iter_time will be set to 1")
             iter_time = 1
 
+        sexp = []
+
         node_sol = len(self._simple_graph)
         current_g = self._simple_graph
         node_num = len(current_g.nodes)
         pathg = nx.Graph()
         while node_num > node_threshold:
-            nodes_weight, edges_weight = self.get_graph_weights(current_g)
-            self._backend._nodes_weight = nodes_weight
-            self._backend._edges_weight = edges_weight
+            # nodes_weight, edges_weight = get_graph_weights(current_g)
+            # self._backend._nodes_weight = nodes_weight
+            # self._backend._edges_weight = edges_weight
+            self._backend._origin_graph = current_g
 
             optization_rounds = iter_time
             while optization_rounds > 0:
                 self._optimizer.optimize(objective_function=self.calculate)  # x, fun, nfev =
-                exp_sorted = sorted(self._backend.element_expectation.items(), key=lambda item: abs(item[1]), reverse=True)
+
+                if corr_method == 'expectation':
+                    # origin format of RQAOA
+                    exp_sorted = sorted(self._backend.element_expectation.items(),
+                                        key=lambda item: abs(item[1]),
+                                        reverse=True)
+                else:
+                    corr = dict()
+                    for key, val in self._backend.element_expectation.items():
+                        if isinstance(key, tuple):
+                            vi, vj = self._backend.element_expectation[key[0]], self._backend.element_expectation[key[1]]
+                            corr[key] = (val - vi * vj) / (1 - vi * vj)
+                        else:
+                            continue
+                    exp_sorted = sorted(corr.items(), key=lambda item: abs(item[1]), reverse=True)
+
                 u, v = exp_sorted[0][0]
                 exp_value = abs(exp_sorted[0][1])
+
                 # print("iteration on %d, max expectation is %lf" % (optization_rounds, exp_value))
                 # print("--------------------------------------")
                 if exp_value - 1e-8 >= 0.5:
@@ -395,7 +415,7 @@ class Qcover:
 
             # if exp_value < 0.5:  # if the relation between two node is small, then run search method
             #     break
-
+            sexp.append(exp_value)
             correlation = 1 if exp_sorted[0][1] - 1e-8 > 0 else -1
             pathg.add_edge(u, v, weight=correlation)
             if u > v:
@@ -424,9 +444,15 @@ class Qcover:
                 solution = {**tmp_sol, **basic_sol}
         else:
             solution = basic_sol
-        return solution
+        return solution, sexp
 
-    def run(self, node_num=None, edge_num=None, is_parallel=False, mode='QAQA', node_threshold=1, iter_time=5):
+    def run(self,
+            node_num=None, edge_num=None,
+            is_parallel=False,
+            mode='QAQA',
+            node_threshold=1,
+            iter_time=1,
+            corr_method='expectation'):
 
         if self._simple_graph is None:
             if node_num is None or edge_num is None:
@@ -439,7 +465,7 @@ class Qcover:
         if mode == 'QAQA':
             res = self.run_qaoa()
         else:
-            res = self.run_rqaoa(node_threshold, iter_time)
+            res = self.run_rqaoa(node_threshold, iter_time, corr_method)
 
         return res
 
@@ -447,80 +473,13 @@ class Qcover:
 # usage example
 if __name__ == '__main__':
 
-    # from Qcover.applications import MaxCut
-    # from Qcover.backends import CircuitByQulacs
-    # T = 20
-    # p = 1
-    # t_qaoa = []
-    # t_rqaoa = []
-    # exp_qaoa = []
-    # exp_rqaoa = []
-    #
-    # for iter in range(T):
-    #     mxt = MaxCut(node_num=100, node_degree=3)
-    #     ising_g, shift = mxt.run()
-    #     qc = Qcover(ising_g, p,
-    #                 optimizer=COBYLA(options={'tol': 1e-6, 'disp': False}),
-    #                 backend=CircuitByQulacs())
-    #
-    #     st = time.time()
-    #     sol = qc.run(mode='QAQA')
-    #     ed = time.time()
-    #     t_qaoa.append(ed - st)
-    #     exp_qaoa.append(sol["Expectation of Hamiltonian"])
-    #     print("time cost by QAOA is:", ed - st)
-    #     print("expectation value by QAOA is:", sol["Expectation of Hamiltonian"])
-    #
-    #     res_g = ising_g.copy()
-    #     rqc = Qcover(ising_g, p,
-    #                 optimizer=COBYLA(options={'tol': 1e-6, 'disp': False}),
-    #                 backend=CircuitByQulacs())
-    #
-    #     st = time.time()
-    #     sol = rqc.run(mode='RQAQA', node_threshold=1)
-    #     ed = time.time()
-    #     t_rqaoa.append(ed - st)
-    #
-    #     exph = 0
-    #     for (x, y) in res_g.nodes.data('weight', default=0):
-    #         exph = exph + y * (sol[x] * 2 - 1)
-    #     for (u, v, c) in res_g.edges.data('weight', default=0):
-    #         exph = exph + c * (sol[u] * 2 - 1) * (sol[v] * 2 - 1)
-    #
-    #     exp_rqaoa.append(exph)
-    #     print("time cost by RQAOA is:", ed - st)
-    #     print("expectation value by RQAOA is:", exph)
-    #
-    # import matplotlib.pyplot as plt
-    # plt.figure(1)
-    # plt.plot(range(T), t_qaoa, "ob-", label="QAOA")
-    # plt.plot(range(T), t_rqaoa, "^r-", label="RQAOA")
-    # plt.ylabel('Time cost')
-    # plt.xlabel('iteration id')
-    # plt.title("comparison of time taken by QAOA with RQAOA")
-    # plt.legend()
-    # plt.savefig('E:/Working_projects/QAOA/QCover/result_log/maxcut_time_large.png')  # maxcut_serial
-    # plt.show()
-
-    # plt.figure(1)
-    # plt.plot(range(T), exp_qaoa, "ob-", label="QAOA")
-    # plt.plot(range(T), exp_rqaoa, "^r-", label="RQAOA")
-    # plt.ylabel('Expectation value')
-    # plt.xlabel('iteration id')
-    # plt.title("comparison of expectation value calculated by QAOA with RQAOA")
-    # plt.legend()
-    # plt.savefig('/public/home/humengjun/Qcover/result_log/tc.png')
-    # plt.show()
-
-
-
     p = 1
     g = nx.Graph()
-    # nodes = [(0, 0), (1, 0), (2, 0)]
-    # edges = [(0, 1, 1), (1, 2, -1)]
+    nodes = [(0, 0), (1, 0), (2, 0)]
+    edges = [(0, 1, 1), (1, 2, 1)]
 
-    nodes = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
-    edges = [(0, 1, 1), (1, 2, 1), (2, 3, -1), (3, 4, -1)]
+    # nodes = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
+    # edges = [(0, 1, -1), (1, 2, -1), (2, 3, -1), (3, 4, -1)]
 
     for nd in nodes:
         u, w = nd[0], nd[1]
@@ -529,95 +488,155 @@ if __name__ == '__main__':
         u, v, w = ed[0], ed[1], ed[2]
         g.add_edge(int(u), int(v), weight=int(w))
 
+    # node_num = 10
+    # for nd in range(node_num):
+    #     g.add_node(nd, weight=0)
+    #     if nd < node_num - 1:
+    #         g.add_edge(nd, nd + 1, weight=-1)
+
+    #Ising test
+    # g.add_node(0, weight=0)
+    # for i in range(1, 30):
+    #     g.add_node(i, weight=0)
+    #     g.add_edge(i, i - 1, weight=-1)
+
+    # nx.draw(g)
     # from Qcover.applications import MaxCut
     # mxt = MaxCut(g)
-    # mxt = MaxCut(node_num=100, node_degree=3)
+    # mxt = MaxCut(node_num=20, node_degree=3)
     #10 3 0.035  100 3 0.029
     #10 6 0.028  100 6 134.56/ce
     # g, shift = mxt.run()
 
+    from Qcover.optimizers import GradientDescent, SPSA, Interp, SHGO
+
+    optg = GradientDescent(options={'maxiter':300, 'learning_rate':0.05, 'tol':1e-6})
+    opti = Interp(optimize_method="COBYLA", options={'tol': 1e-8, 'disp': False})
+    opta = SPSA(options={'maxiter':300, 'tol':1e-6})
     optc = COBYLA(options={'tol': 1e-3, 'disp': True})
-    # qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
+    opts = SHGO(options={'minimizer_kwargs':{'method':'SLSQP', 'options':{'ftol': 1e-12}}, 'sampling_method':'sobol'})
+    qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
     from Qcover.backends import CircuitByQton, CircuitByQulacs, CircuitByProjectq, CircuitByTensor, CircuitByCirq
     qulacs_bc = CircuitByQulacs()
-    cirq_bc = CircuitByCirq()
-    projectq_bc = CircuitByProjectq()
-    ts = CircuitByTensor()
-    qt = CircuitByQton()  #expectation_calc_method="tensor"
+    # cirq_bc = CircuitByCirq()
+    # projectq_bc = CircuitByProjectq()
+    # ts = CircuitByTensor()
+    # qt = CircuitByQton()  #expectation_calc_method="tensor"
 
     qc = Qcover(g, p,
-                  optimizer=optc,
-                  backend=qt)  #qiskit_bc, ,qulacs_bc
-
-    # st = time.time()
-    # sol = qc.run(is_parallel=False, mode='QAQA')  #True
-    # ed = time.time()
-    # print("time cost by QAOA is:", ed - st)
-    # print("solution is:", sol)
-    # params = sol["Optimal parameter value"]
-    # out_count = qc.backend.get_result_counts(params, g)
-    # import matplotlib.pyplot as plt
-    # from qiskit.visualization import plot_histogram
-    # plot_histogram(out_count)
-    # plt.show()
+                # research_obj="QAOA",
+                optimizer=optc,  #@ optc,
+                backend=qulacs_bc)  #qiskit_bc, qt, , cirq_bc, projectq_bc
 
     st = time.time()
-    sol = qc.run(mode='RQAQA', node_threshold=1, iter_time=3)
+    sol = qc.run(is_parallel=False, mode='QAQA')  #True
     ed = time.time()
-    print("time cost by RQAOA is:", ed - st)
+    print("time cost by QAOA is:", ed - st)
     print("solution is:", sol)
+    params = sol["Optimal parameter value"]
+    qc.backend._pargs = params
+    out_count = qc.backend.get_result_counts(params)
+    res_exp = qc.backend.expectation_calculation()
+    print("the optimal expectation is: ", res_exp)
+    qc.backend.sampling_visualization(out_count)
 
-
-    # p = 1
+    # test RQAOA
+    # import matplotlib.pyplot as plt
     # from Qcover.applications import MaxCut
+    #
+    # p = 1
     # node_num = [10, 50, 100, 500, 1000]
     # node_d = [3, 4, 5, 6]
     # for i in node_num:
-    #     pt, st = [], []
-    #     pv, sv = [], []
+    #     et, gt = [], []
+    #     ev, gv = [], []
     #     for nd in node_d:
+    #         print("node number is %d, node degree is %d" % (i, nd))
+    #         print("----------------------------------------------")
     #         mxt = MaxCut(node_num=i, node_degree=nd)
     #         g, shift = mxt.run()
-    #         from Qcover.backends import CircuitByQton
-    #         qt = CircuitByQton(expectation_calc_method="tensor")  #
-    #         optc = COBYLA(options={'tol': 1e-3, 'disp': True})
-    #         qct = Qcover(g, p,
-    #                     optimizer=optc,
-    #                     backend=qt)  # qiskit_bc, ,qulacs_bc
     #
-    #         t1 = time.time()
-    #         sol = qct.run(is_parallel=False, mode='QAQA')  # True
-    #         t2 = time.time()
-    #         st.append(t2 - t1)
-    #
-    #         t1 = time.time()
-    #         sol = qct.run(is_parallel=True, mode='QAQA')  #
-    #         t2 = time.time()
-    #         pt.append(t2 - t1)
-    #
-    #         qcv = Qcover(g, p,
+    #         g_exp = g.copy()
+    #         qc_exp = Qcover(g_exp, p,
     #                     optimizer=COBYLA(options={'tol': 1e-3, 'disp': True}),
-    #                     backend=CircuitByQton())  # qiskit_bc, ,qulacs_bc
-    #         t1 = time.time()
-    #         sol = qcv.run(is_parallel=False, mode='QAQA')  # True
-    #         t2 = time.time()
-    #         sv.append(t2 - t1)
+    #                     backend=CircuitByQiskit(expectation_calc_method="statevector"))  # qt, ,qulacs_bc
     #
-    #         t1 = time.time()
-    #         sol = qcv.run(is_parallel=True, mode='QAQA')  #
-    #         t2 = time.time()
-    #         pv.append(t2 - t1)
+    #         st = time.time()
+    #         sol_exp, sexp_exp = qc_exp.run(mode='RQAQA', node_threshold=1, iter_time=3, corr_method='expectation')
+    #         ed = time.time()
+    #         t1 = ed - st
     #
-    #     import matplotlib.pyplot as plt
-    #     plt.figure()
-    #     plt.plot(node_d, pt, "ob-", label="parallel tensor")
-    #     plt.plot(node_d, st, "^r-", label="serial tensor")
-    #     plt.plot(node_d, pv, "*g-", label="parallel statevector")
-    #     plt.plot(node_d, sv, "dy-", label="serial statevector")
-    #     plt.ylabel('Time cost')
-    #     plt.xlabel('node degree')
-    #     plt.title("node is %d" % i)
-    #     plt.legend()
-    #     plt.savefig('/public/home/humengjun/Qcover/result_log/qton_tensor/%d.png' % i)
-    #     plt.close('all')
+    #         g_g = g.copy()
+    #         qc_g = Qcover(g_g, p,
+    #                     optimizer=COBYLA(options={'tol': 1e-3, 'disp': True}),
+    #                     backend=CircuitByQiskit(expectation_calc_method="statevector"))  # qt, ,qulacs_bc
+    #         st = time.time()
+    #         sol_g, sexp_g = qc_g.run(mode='RQAQA', node_threshold=1, iter_time=3, corr_method='g')
+    #         ed = time.time()
+    #         t2 = ed - st
+    #
+    #         exp_e, exp_g = 0, 0
+    #         for (x, y) in g.nodes.data('weight', default=0):
+    #             exp_e += y * (sol_exp[x] * 2 - 1)
+    #             exp_g += y * (sol_g[x] * 2 - 1)
+    #         for (u, v, c) in g.edges.data('weight', default=0):
+    #             exp_e += c * (sol_exp[u] * 2 - 1) * (sol_exp[v] * 2 - 1)
+    #             exp_g += c * (sol_g[u] * 2 - 1) * (sol_g[v] * 2 - 1)
+    #
+    #         et.append(t1)
+    #         gt.append(t2)
+    #
+    #         ev.append(exp_e)
+    #         gv.append(exp_g)
+    #
+    #         plt.figure(0)
+    #         plt.plot(range(len(sexp_exp)), sexp_exp, "ob-", label="origin")
+    #         plt.plot(range(len(sexp_g)), sexp_g, "^r-", label="correlation")
+    #         plt.ylabel('expectation')
+    #         plt.xlabel('iteration rounds')
+    #         plt.title("node is %d, degree is %d" % (i, nd))
+    #         plt.legend()
+            # plt.savefig('/home/baqis/Qcover/result_log/correlation_exp/iter_%d_%d.png' % (i, nd))
+            # plt.savefig('E:/Working_projects/QAOA/Qcover/result_log/correlation_exp/iter_%d_%d.png' % (i, nd))
+        #     plt.savefig('/home/puyanan/Qcover/result_log/correlation_exp/iter_%d_%d.png' % (i, nd))
+        #     plt.close('all')
+        #
+        # plt.figure(1)
+        # plt.plot(node_d, et, "ob-", label="origin")
+        # plt.plot(node_d, gt, "^r-", label="correlation")
+        # plt.ylabel('Time cost')
+        # plt.xlabel('node degree')
+        # plt.title("node is %d" % i)
+        # plt.legend()
+        # plt.savefig('/home/baqis/Qcover/result_log/correlation_exp/time_cost_%d.png' % i)
+        # plt.savefig('E:/Working_projects/QAOA/Qcover/result_log/correlation_exp/time_cost_%d.png' % i)
+        # plt.savefig('/home/puyanan/Qcover/result_log/correlation_exp/time_cost_%d.png' % i)
+        #
+        # plt.figure(2)
+        # plt.plot(node_d, ev, "*g-", label="origin")
+        # plt.plot(node_d, gv, "dy-", label="correlation")
+        # plt.ylabel('expectation of hamitonian')
+        # plt.xlabel('node degree')
+        # plt.title("node is %d" % i)
+        # plt.legend()
+        # plt.savefig('/home/baqis/Qcover/result_log/correlation_exp/hamitonian_exp_%d.png' % i)
+        # plt.savefig('E:/Working_projects/QAOA/Qcover/result_log/correlation_exp/hamitonian_exp_%d.png' % i)
+        # plt.savefig('/home/puyanan/Qcover/result_log/correlation_exp/hamitonian_exp_%d.png' % i)
+        #
+        # plt.close('all')
+
+
+
+
+# print("time cost by RQAOA with expectation is:", t1)
+# print("expectation list with expectation:", exp_e)
+# print("solution of expectation is:", sol_exp)
+# # {8: 0, 4: 1, 2: 0, 3: 1, 7: 0, 5: 1, 0: 0, 6: 0, 1: 1, 9: 1})
+#
+# print("time cost by RQAOA with correlation is:", t2)
+# print("expectation list with correlation:", exp_g)
+# print("solution of correlation is:", sol_g)
+
+
+
 

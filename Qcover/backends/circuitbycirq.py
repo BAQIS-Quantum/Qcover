@@ -6,22 +6,24 @@ from multiprocessing import Pool, cpu_count
 import networkx as nx
 import cirq
 from Qcover.backends import Backend
+from Qcover.utils import get_graph_weights
 
 
 class CircuitByCirq(Backend):
     """generate a instance of CircuitByCirq"""
 
     def __init__(self,
-                 nodes_weight: list = None,
-                 edges_weight: list = None,
+                 research: str = "QAOA",
                  is_parallel: bool = None) -> None:
         """initialize a instance of CircuitByCirq"""
         super(CircuitByCirq, self).__init__()
         self._p = None
-        self._nodes_weight = nodes_weight
-        self._edges_weight = edges_weight
+        self._origin_graph = None
         self._is_parallel = False if is_parallel is None else is_parallel
+        self._research = research
 
+        self._nodes_weight = None
+        self._edges_weight = None
         self._element_to_graph = None
         self._pargs = None
         self._expectation_path = []
@@ -39,6 +41,55 @@ class CircuitByCirq(Backend):
             if i in nodes:
                 op *= cirq.Z(qubits[i])
         return op
+
+    def get_QAOA_circuit(self, p, graph, node_to_qubit):
+        gamma_list, beta_list = self._pargs[: p], self._pargs[p:]
+        circ = cirq.Circuit()
+        ql = cirq.LineQubit.range(len(graph))
+        circ.append(cirq.H(ql[i]) for i in range(len(graph)))
+        for k in range(p):
+            for i in graph.nodes:
+                u = node_to_qubit[i]
+                circ.append(cirq.rz(2 * gamma_list[k] * self._nodes_weight[i]).on(ql[u]))
+
+            for edge in graph.edges:
+                u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
+                if u == v:
+                    continue
+
+                circ.append(cirq.CX(ql[u], ql[v]))
+                circ.append(cirq.rz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]).on(ql[v]))
+                circ.append(cirq.CX(ql[u], ql[v]))
+
+            for nd in graph.nodes:
+                u = node_to_qubit[nd]
+                circ.append(cirq.Moment(cirq.rx(2 * beta_list[k]).on(ql[u])))
+
+        return circ
+
+    def get_GHZ_circuit(self, p, graph, node_to_qubit):
+        gamma_list, beta_list = self._pargs[: p], self._pargs[p:]
+        circ = cirq.Circuit()
+        ql = cirq.LineQubit.range(len(graph))
+        circ.append(cirq.H(ql[i]) for i in range(len(graph)))
+
+        pivot = len(self._origin_graph) // 2
+        for k in range(p):
+            for edge in graph.edges:
+                u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
+                if u == v:
+                    continue
+
+                circ.append(cirq.CX(ql[u], ql[v]))
+                circ.append(cirq.rz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]).on(ql[v]))
+                circ.append(cirq.CX(ql[u], ql[v]))
+
+            for nd in graph.nodes:
+                if nd != pivot:
+                    u = node_to_qubit[nd]
+                    circ.append(cirq.Moment(cirq.rx(2 * beta_list[k]).on(ql[u])))
+
+        return circ
 
     def get_expectation(self, element_graph, p=None):
         """
@@ -70,28 +121,14 @@ class CircuitByCirq(Backend):
         for i in range(len(node_list)):
             node_to_qubit[node_list[i]] = i
 
-        circ = cirq.Circuit()
-        ql = cirq.LineQubit.range(len(node_list))
-        circ.append(cirq.H(ql[i]) for i in range(len(node_list)))
-
-        gamma_list, beta_list = self._pargs[:p], self._pargs[p:]
-        for k in range(p):
-            for i in graph.nodes:
-                u = node_to_qubit[i]
-                circ.append(cirq.rz(2 * gamma_list[k] * self._nodes_weight[i]).on(ql[u]))
-
-            for edge in graph.edges:
-                u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
-                if u == v:
-                    continue
-
-                circ.append(cirq.CX(ql[u], ql[v]))
-                circ.append(cirq.rz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]).on(ql[v]))
-                circ.append(cirq.CX(ql[u], ql[v]))
-
-            for nd in graph.nodes:
-                u = node_to_qubit[nd]
-                circ.append(cirq.Moment(cirq.rx(2 * beta_list[k]).on(ql[u])))
+        if self._research == "QAOA":
+            circ = self.get_QAOA_circuit(p, graph, node_to_qubit)
+        elif self._research == "GHZ":
+            pivot = len(self._origin_graph) // 2
+            if pivot in graph:
+                circ = self.get_GHZ_circuit(p, graph, node_to_qubit)
+            else:
+                circ = self.get_QAOA_circuit(p, graph, node_to_qubit)
 
         qubits = cirq.LineQubit.range(len(node_list))
         qubit_map = dict(zip(qubits, range(len(node_list))))
@@ -109,6 +146,10 @@ class CircuitByCirq(Backend):
         return weight, exp_res.real
 
     def expectation_calculation(self, p=None):
+        if self._nodes_weight is None or self._edges_weight is None:
+            nodes_weight, edges_weight = get_graph_weights(self._origin_graph)
+            self._nodes_weight, self._edges_weight = nodes_weight, edges_weight
+
         self._element_expectation = {}
         if self._is_parallel:
             return self.expectation_calculation_parallel(p)
@@ -158,7 +199,7 @@ class CircuitByCirq(Backend):
         self._expectation_path.append(res)
         return res
 
-    def visualization(self):
+    def optimization_visualization(self):
         plt.figure()
         plt.plot(range(1, len(self._expectation_path) + 1), self._expectation_path, "ob-", label="cirq")
         plt.ylabel('Expectation value')

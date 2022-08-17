@@ -5,6 +5,8 @@ from .L_BFGS_B import L_BFGS_B
 from .Gradient_Descent import GradientDescent
 from .Interp import Interp
 from .Fourier import Fourier
+from .SPSA import SPSA
+from .SHGO import SHGO
 
 __all__ = ['Optimizer',
            'COBYLA',
@@ -12,5 +14,7 @@ __all__ = ['Optimizer',
            'L_BFGS_B',
            'GradientDescent',
            'Interp',
-           'Fourier'
+           'Fourier',
+           'SPSA',
+           'SHGO'
            ]

@@ -5,22 +5,15 @@ import numpy as np
 from scipy import optimize as opt
 from Qcover.optimizers import Optimizer
 from Qcover.exceptions import ArrayShapeError
+import warnings
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
 
-class SLSQP(Optimizer):
-    """
-    SLSQP: a numerical optimization method for constrained problems
-
-    based on scipy.optimize.minimize SLSQP.
-    For further detail, please refer to
-    https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
-    """
-
-    # pylint: disable=unused-argument
+class SimulatedAnnealing(Optimizer):
     def __init__(self,
-                 options: dict = None,
+                 options: dict = None,  # {'maxiter':300, 'disp':True, 'rhobeg': 1.0, 'tol':1e-6},
                  initial_point: Optional[np.ndarray] = None) -> None:
         """
         Args:
@@ -36,6 +29,9 @@ class SLSQP(Optimizer):
         self._options = options
         self._initial_point = initial_point
 
+    def _minimize(self, loss):
+        pass
+
     def optimize(self, objective_function):
         if self._initial_point is None:
             self._initial_point = np.array([np.random.random() for x in range(2 * self._p)])
@@ -47,19 +43,4 @@ class SLSQP(Optimizer):
                 print(e)
                 sys.exit()
 
-        res = opt.minimize(objective_function,
-                           x0=np.array(self._initial_point),
-                           args=self._p,
-                           method='SLSQP',
-                           jac=None,
-                           options=self._options
-                           )
-
-        return res.x, res.fun, res.nfev
-
-# opts = SLSQP(options={'maxiter': 100,
-#         'ftol': 1e-06,
-#         'iprint': 1,
-#         'disp': False,
-#         'eps': 1.4901161193847656e-08,
-#         'finite_diff_rel_step': None})
+        return self._minimize(objective_function)

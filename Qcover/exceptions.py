@@ -66,3 +66,13 @@ class UserConfigError(QcoverError):
 
     def __str__(self):
         return self.name + self.message
+
+
+class OptimizerConfigError(QcoverError):
+    def __init__(self, msg):
+        self.name = "OptimizerConfigError: "
+        self.message = msg
+        super().__init__(msg)
+
+    def __str__(self):
+        return self.name + self.message

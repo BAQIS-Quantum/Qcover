@@ -134,7 +134,7 @@ class CircuitByTensor(Backend):
         self._expectation_path.append(res)
         return res
 
-    def visualization(self):
+    def optimization_visualization(self):
         plt.figure()
         plt.plot(range(1, len(self._expectation_path) + 1), self._expectation_path, "ob-", label="quimb")
         plt.ylabel('Expectation value')

@@ -150,7 +150,7 @@ class Qcircuit:
         memory = choices(range(N), weights=p, k=shots)
         counts = {}
         for i in memory:
-            key = format(i, '0%db'%self.num_qubits)
+            key = format(i, '0%db' % self.num_qubits)
             if key in counts:
                 counts[key] += 1
             else:

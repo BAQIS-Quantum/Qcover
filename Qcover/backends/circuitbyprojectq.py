@@ -13,22 +13,24 @@ from projectq.ops import QubitOperator, All, H, Rx, Measure, MatrixGate, Rz, Rzz
 from projectq.setups import linear
 
 from Qcover.backends import Backend
+from Qcover.utils import get_graph_weights
 
 
 class CircuitByProjectq(Backend):
     """generate a instance of CircuitByProjectq"""
     def __init__(self,
-                 nodes_weight: list = None,
-                 edges_weight: list = None,
+                 research: str = "QAOA",
                  is_parallel: bool = None) -> None:
         """initialize a instance of CircuitByProjectq"""
         super(CircuitByProjectq, self).__init__()
 
         self._p = None
-        self._nodes_weight = nodes_weight
-        self._edges_weight = edges_weight
+        self._origin_graph = None
         self._is_parallel = False if is_parallel is None else is_parallel
+        self._research = research
 
+        self._nodes_weight = None
+        self._edges_weight = None
         self._element_to_graph = None
         self._pargs = None
         self._expectation_path = []
@@ -46,6 +48,58 @@ class CircuitByProjectq(Backend):
         else:
             op += QubitOperator('Z' + str(element[0])) + QubitOperator('Z' + str(element[1]))
         return op
+
+    def get_QAOA_circuit(self, p, graph, node_to_qubit):
+        gamma_list, beta_list = self._pargs[: p], self._pargs[p:]
+        eng = MainEngine()
+        qubits = eng.allocate_qureg(len(graph.nodes))
+        All(H) | qubits
+
+        for k in range(p):
+            for edge in graph.edges:
+                u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
+                if u == v:
+                    continue
+                Rzz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]) | (qubits[u], qubits[v])
+
+            for nd in graph.nodes:
+                u = node_to_qubit[nd]
+                Rz(2 * gamma_list[k] * self._nodes_weight[nd]) | qubits[u]
+                Rx(2 * beta_list[k]) | qubits[u]
+
+        # print("before flush")
+        eng.flush()
+        # print("after flush")
+        # print("the original element is", original_e)
+        # assert len(qubits) == len(node_list)
+        return eng, qubits
+
+    def get_GHZ_circuit(self, p, graph, node_to_qubit):
+        gamma_list, beta_list = self._pargs[: p], self._pargs[p:]
+        pivot = len(self._origin_graph) // 2
+
+        eng = MainEngine()
+        qubits = eng.allocate_qureg(len(graph.nodes))
+        All(H) | qubits
+
+        for k in range(p):
+            for edge in graph.edges:
+                u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
+                if u == v:
+                    continue
+                Rzz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]) | (qubits[u], qubits[v])
+
+            for nd in graph.nodes:
+                if nd != pivot:
+                    u = node_to_qubit[nd]
+                    Rx(2 * beta_list[k]) | qubits[u]
+
+        # print("before flush")
+        eng.flush()
+        # print("after flush")
+        # print("the original element is", original_e)
+        # assert len(qubits) == len(node_list)
+        return eng, qubits
 
     def get_expectation(self, element_graph, p=None):
         """
@@ -77,28 +131,15 @@ class CircuitByProjectq(Backend):
         for i in range(len(node_list)):
             node_to_qubit[node_list[i]] = i
 
-        gamma_list, beta_list = self._pargs[: p], self._pargs[p:]
-        eng = MainEngine()
-        qubits = eng.allocate_qureg(len(graph.nodes))
-        All(H) | qubits
+        if self._research == "QAOA":
+            eng, qubits = self.get_QAOA_circuit(p, graph, node_to_qubit)
+        elif self._research == "GHZ":
+            pivot = len(self._origin_graph) // 2
+            if pivot in graph:
+                eng, qubits = self.get_GHZ_circuit(p, graph, node_to_qubit)
+            else:
+                eng, qubits = self.get_QAOA_circuit(p, graph, node_to_qubit)
 
-        for k in range(p):
-            for edge in graph.edges:
-                u, v = node_to_qubit[edge[0]], node_to_qubit[edge[1]]
-                if u == v:
-                    continue
-                Rzz(2 * gamma_list[k] * self._edges_weight[edge[0], edge[1]]) | (qubits[u], qubits[v])
-
-            for nd in graph.nodes:
-                u = node_to_qubit[nd]
-                Rz(2 * gamma_list[k] * self._nodes_weight[nd]) | qubits[u]
-                Rx(2 * beta_list[k]) | qubits[u]
-
-        # print("before flush")
-        eng.flush()
-        # print("after flush")
-        # print("the original element is", original_e)
-        # assert len(qubits) == len(node_list)
         if isinstance(original_e, int):
             weight = self._nodes_weight[original_e]
             op = self.get_operator(node_to_qubit[original_e])
@@ -113,6 +154,10 @@ class CircuitByProjectq(Backend):
         return weight, exp_res
 
     def expectation_calculation(self, p=None):
+        if self._nodes_weight is None or self._edges_weight is None:
+            nodes_weight, edges_weight = get_graph_weights(self._origin_graph)
+            self._nodes_weight, self._edges_weight = nodes_weight, edges_weight
+
         self._element_expectation = {}
         if self._is_parallel:
             return self.expectation_calculation_parallel(p)
@@ -162,7 +207,7 @@ class CircuitByProjectq(Backend):
         self._expectation_path.append(res)
         return res
 
-    def visualization(self):
+    def optimization_visualization(self):
         plt.figure()
         plt.plot(range(1, len(self._expectation_path) + 1), self._expectation_path, "ob-", label="projectq")
         plt.ylabel('Expectation value')

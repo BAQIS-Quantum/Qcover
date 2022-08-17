@@ -3,10 +3,10 @@ import numpy as np
 from typing import Optional
 from scipy import optimize as opt
 from Qcover.optimizers import Optimizer
-from Qcover.exceptions import ArrayShapeError
+from Qcover.exceptions import ArrayShapeError, OptimizerConfigError
 
 
-class Interp:
+class Interp(Optimizer):
     """
         Interp optimizer: a heuristic optimization method for QAOA,
         implemented according to the paper
@@ -64,20 +64,34 @@ class Interp:
                 gamma_list, beta_list = gamma_list_new, beta_list_new
 
             res = opt.minimize(objective_function,
-                           x0=np.append(gamma_list[1:k+1], beta_list[1:k+1]),
-                           args=k,
-                           method=self._optimize_method,
-                           jac=opt.rosen_der,
-                           options=self._options)
+                               x0=np.append(gamma_list[1:k+1], beta_list[1:k+1]),
+                               args=k,
+                               method=self._optimize_method,
+                               jac=opt.rosen_der,
+                               options=self._options)
 
             gamma_list, beta_list = res["x"][:k], res["x"][k:]
             value = res["fun"]
             nfev += res["nfev"]
+
+            try:
+                optv_f, aprv_f = "optimal_value" in self._options, "approximate_ratio" in self._options
+                if optv_f ^ aprv_f:
+                    raise OptimizerConfigError("optimal value and approximate ratio option should be set simultaneously to the optimizer")
+                if optv_f & aprv_f:
+                    optv, aprv = self._options["optimal_value"], self._options["approximate_ratio"]
+                    if optv * aprv >= value:
+                        print("The target approximation relative to the optimal value is reached. "
+                              "The value of P is", k)
+                        break
+            except OptimizerConfigError as e:
+                print(e)
+                sys.exit()
+
         return np.append(gamma_list, beta_list), value, nfev
         # return {"gamma": gamma_list, "beta": beta_list, "optimal value": value, "nfev": nfev}
 
     def optimize(self, objective_function):
-
         if self._initial_point is None:
             self._initial_point = np.array([np.random.random() for x in range(2 * self._p)])
         else:

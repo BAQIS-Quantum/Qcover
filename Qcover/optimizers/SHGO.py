@@ -3,13 +3,14 @@ from typing import Optional
 import logging
 import numpy as np
 from scipy import optimize as opt
+from scipy.optimize import shgo
 from Qcover.optimizers import Optimizer
 from Qcover.exceptions import ArrayShapeError
 
 logger = logging.getLogger(__name__)
 
 
-class SLSQP(Optimizer):
+class SHGO(Optimizer):
     """
     SLSQP: a numerical optimization method for constrained problems
 
@@ -47,13 +48,18 @@ class SLSQP(Optimizer):
                 print(e)
                 sys.exit()
 
-        res = opt.minimize(objective_function,
-                           x0=np.array(self._initial_point),
-                           args=self._p,
-                           method='SLSQP',
-                           jac=None,
-                           options=self._options
-                           )
+        # method = self._options['method'] if 'method' in self._options['method'] else 'SLSQP'
+        sampling_method = self._options['sampling_method'] if 'sampling_method' in self._options else 'simplicial'
+        minimizer_kwargs = self._options['minimizer_kwargs'] if 'minimizer_kwargs' in self._options else None
+        bounds = [(None, None), ] * len(self._initial_point)
+        res = shgo(objective_function, bounds=bounds, sampling_method=sampling_method, minimizer_kwargs=minimizer_kwargs)
+        # res = opt.minimize(objective_function,
+        #                    x0=np.array(self._initial_point),
+        #                    args=self._p,
+        #                    method='SLSQP',
+        #                    jac=None,
+        #                    options=self._options
+        #                    )
 
         return res.x, res.fun, res.nfev
 
