@@ -156,7 +156,9 @@ class CircuitByQiskit(Backend):
         elif self._expectation_calc_method == "statistic":
             circ.measure_all()
             backend = Aer.get_backend('qasm_simulator')
-            counts = backend.run(circ, seed_simulator=43, nshots=1024).result().get_counts()
+            backend.shots = 1024
+            counts = backend.run(circ, seed_simulator=10, nshots=1024 * 100).result().get_counts()
+            # counts = backend.run(circ, seed_simulator=43, nshots=1024).result().get_counts()
 
             def Ising_obj(x, G):
                 obj = 0
@@ -200,8 +202,8 @@ class CircuitByQiskit(Backend):
         # st = time.time()
         for item in self._element_to_graph.items():
             w_i, exp_i = self.get_expectation(item, p)
-            # if isinstance(item[0], tuple):  #origin format of RQAOA
-            self._element_expectation[item[0]] = exp_i
+            if isinstance(item[0], tuple):  #origin format of RQAOA
+                self._element_expectation[item[0]] = exp_i
             res += w_i * exp_i  #
         # ed = time.time()
         # print("exp one cost:", ed - st)

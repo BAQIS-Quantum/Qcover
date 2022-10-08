@@ -21,18 +21,16 @@ class GHZ_Generate:
                  ) -> None:
         self._p = p
         self._node_num = node_num
-        # self._backend = backend
-        # self._optimizer = optimizer
 
         if graph is None:
-            self._g = self.get_graph()
+            self._original_graph = self.get_graph()
         else:
             if self._node_num != len(graph):
                 print("Error: node number should be same with the one in graph to initialize")
                 return
-            self._g = graph
+            self._original_graph = graph
 
-        self._qc = Qcover(self._g,
+        self._qc = Qcover(self._original_graph,
                           self._p,
                           optimizer=optimizer,
                           backend=backend,
@@ -67,12 +65,12 @@ class GHZ_Generate:
         return g
 
     def run(self, is_parallel=False, mode='QAQA'):
-        if self._g is None:
-            self._g = self.get_graph()
+        if self._original_graph is None:
+            self._original_graph = self.get_graph()
 
-        # nx.draw(self._g)
+        # nx.draw(self._original_graph)
         # if self._qc is None:
-        #     self._qc = Qcover(self._g,
+        #     self._qc = Qcover(self._original_graph,
         #                       self._p,
         #                       optimizer=self._optimizer,
         #                       backend=self._backend,

@@ -1,4 +1,3 @@
-import json
 import networkx as nx
 from queue import PriorityQueue
 import matplotlib.pyplot as plt
@@ -87,6 +86,7 @@ class BuildLibrary:
             connected_substructure_list.append(connected_subgraph)
             G.remove_nodes_from(connected_nodes)
             # # draw coupling graph
+            plt.close()
             # pos = nx.spring_layout(connected_subgraph)
             # new_labels = dict(map(lambda x: ((x[0], x[1]), format(float(str(x[2]['weight'])), '.2f')),
             #                       connected_subgraph.edges(data=True)))
@@ -126,7 +126,6 @@ class BuildLibrary:
                                     if not cg.nodes[neighbor]['visited']:
                                         weight = cg[node][neighbor]['weight']
                                         neighbors.put((-weight, neighbor))
-
                             out = []
                             for edge in directed_weighted_edges:
                                 if edge[0] in ret_nodes and edge[1] in ret_nodes:
@@ -135,6 +134,7 @@ class BuildLibrary:
                                     qubit[2] > self.fidelity_threshold for qubit in out):
                                 substructure_nodes.append(sorted(ret_nodes))
                                 all_substructure.append([log_weight_product, out])
+
             self.fidelity_threshold = self.fidelity_threshold - 1
         all_substructure = sorted(all_substructure, key=lambda x: x[0], reverse=True)
         return all_substructure
@@ -161,3 +161,86 @@ class BuildLibrary:
             # file.write(json.dumps(save_substructure))
             file.write(str(save_substructure))
         return save_substructure
+
+    def chain_library_2D(self, substructure_data):
+        # find one-dimensional chain
+        G = nx.DiGraph()
+        G.add_weighted_edges_from(substructure_data['substructure_dict'][len(substructure_data['qubit_to_int'])][0])
+        node_degree = dict(G.degree)
+        sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=False)
+        one_link_nodes = [node for node, degree in sort_degree if degree == 2]
+        all_oneD_chain = []
+        for i in range(len(one_link_nodes)):
+            begin_node = one_link_nodes[i]
+            queue_oneD_chain = []
+            queue_oneD_chain.append([begin_node])
+
+            while queue_oneD_chain:
+                end_node = queue_oneD_chain[0][-1]
+                neighbor_nodes = [k for k, v in G[end_node].items()]
+                neighbor_nodes = [node for node in neighbor_nodes if node not in queue_oneD_chain[0]]
+                if len(neighbor_nodes) == 0:
+                    all_oneD_chain.append(queue_oneD_chain[0])
+                    queue_oneD_chain.remove(queue_oneD_chain[0])
+                elif len(neighbor_nodes) == 1:
+                    queue_oneD_chain[0].append(neighbor_nodes[0])
+                else:
+                    for k in range(1, len(neighbor_nodes)):
+                        oneD_chain = copy.deepcopy(queue_oneD_chain[0])
+                        oneD_chain.append(neighbor_nodes[k])
+                        if oneD_chain not in queue_oneD_chain:
+                            queue_oneD_chain.append(oneD_chain)
+                    queue_oneD_chain[0].append(neighbor_nodes[0])
+
+        chain_dict = defaultdict(list)
+
+        sorted_chain = []
+        for chain in all_oneD_chain:
+            if sorted(chain) not in sorted_chain:
+                sorted_chain.append(sorted(chain))
+                chain_dict[len(chain)].append(chain)
+
+        chain_dict = dict(sorted(chain_dict.items(), key=lambda x: x[0]))
+        # longset_chain = chain_dict[max(chain_dict.keys())][0]
+
+        structure_dict = {}
+        for edge in substructure_data['structure']:
+            structure_dict[(edge[0], edge[1])] = edge[2]
+
+        connected_chain_list = []
+        for node_number, chain_nodes_list in chain_dict.items():
+            for chain_nodes in chain_nodes_list:
+                chain_graph = nx.DiGraph()
+                directed_weighted_edges = []
+                for i in range(len(chain_nodes)-1):
+                    directed_weighted_edges.append([chain_nodes[i], chain_nodes[i+1],
+                                                    structure_dict[(chain_nodes[i], chain_nodes[i+1])]])
+                    directed_weighted_edges.append([chain_nodes[i+1], chain_nodes[i],
+                                                    structure_dict[(chain_nodes[i+1], chain_nodes[i])]])
+                chain_graph.add_weighted_edges_from(directed_weighted_edges)
+                connected_chain_list.append([directed_weighted_edges, chain_graph])
+
+        subchain_dict = defaultdict(list)
+        for chain in connected_chain_list:
+            for qubits in range(2, len(chain[1].nodes())+1):
+                sub_graph = self.substructure(chain[0], [chain[1]], qubits)
+                for j in range(len(sub_graph)):
+                    log_weight_product = 0
+                    for edge in sub_graph[j][1]:
+                        log_weight_product = log_weight_product + math.log(edge[2])
+                    if [log_weight_product, sub_graph[j][1]] not in subchain_dict[qubits]:
+                        subchain_dict[qubits].append([log_weight_product, sub_graph[j][1]])
+
+        sorted_subchain_dict = {}
+        for k, chain_list in subchain_dict.items():
+            chain_list = sorted(chain_list, key=lambda x: x[0], reverse=True)
+            chain_list = [chain[1] for chain in chain_list]
+            sorted_subchain_dict[k] = chain_list
+
+        save_substructure = {'calibration_time': self.calibration_time, 'subchain_dict': sorted_subchain_dict}
+        if os.path.exists('LibSubchain_' + self.backend + '.txt'):
+            os.remove('LibSubchain_' + self.backend + '.txt')
+        with open('LibSubchain_' + self.backend + '.txt', 'w') as file:
+            file.write(str(save_substructure))
+        return save_substructure
+

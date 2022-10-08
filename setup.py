@@ -28,12 +28,13 @@ exec(open('Qcover/version.py').read())
 
 requirements = [
     "numpy>=1.19.3",
-    "networkx==2.5.1",
+    "networkx>=2.5.1",
     "qiskit==0.31.0",
     "projectq==0.6.1.post0",
     "cirq==0.13.0",
     "quimb==1.3.0",
     "qulacs==0.3.0",
+    "pyquafu>=0.2.4"
 ]
 
 setup(

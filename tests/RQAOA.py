@@ -6,6 +6,8 @@ import numpy as np
 import networkx as nx
 from Qcover.optimizers import Optimizer, COBYLA
 from Qcover.backends import Backend, CircuitByQiskit
+from Qcover.utils import get_graph_weights
+from Qcover.exceptions import  UserConfigError
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -211,18 +213,59 @@ class RQcover:
         self._backend._element_to_graph = element_to_graph
         return self._backend.expectation_calculation(p)
 
-    def run_rqaoa(self, node_threshold=1):
-        current_g = self._simple_graph
+    def run_rqaoa(self, node_threshold, iter_time=1, is_parallel=False):  # corr_method,
+        try:
+            if iter_time < 1:
+                raise UserConfigError("iter_time should be a value greater than 1")
+        except UserConfigError as e:
+            print(e)
+            print("iter_time will be set to 1")
+            iter_time = 1
+
+        self._qc.backend._is_parallel = is_parallel
+        # sexp = []
+
+        node_sol = len(self._original_graph)
+        current_g = self._original_graph
         node_num = len(current_g.nodes)
         pathg = nx.Graph()
         while node_num > node_threshold:
-            nodes_weight, edges_weight = self.get_graph_weights(current_g)
+            self._backend._origin_graph = current_g
+            nodes_weight, edges_weight = get_graph_weights(current_g)
             self._backend._nodes_weight = nodes_weight
             self._backend._edges_weight = edges_weight
 
-            self._optimizer.optimize(objective_function=self.calculate)   #x, fun, nfev =
-            exp_sorted = sorted(self._backend._element_expectation.items(), key=lambda item: abs(item[1]), reverse=True)
-            u, v = exp_sorted[0][0]
+            optization_rounds = iter_time
+            while optization_rounds > 0:
+                self._optimizer.optimize(objective_function=self.calculate)
+
+                # if corr_method == 'expectation':
+                # origin format of RQAOA
+                exp_sorted = sorted(self._backend.element_expectation.items(),
+                                    key=lambda item: abs(item[1]),
+                                    reverse=True)
+                # else:
+                # corr = dict()
+                # for key, val in self._qc.backend.element_expectation.items():
+                #     if isinstance(key, tuple):
+                #         vi, vj = self._qc.backend.element_expectation[key[0]], self._qc.backend.element_expectation[key[1]]
+                #         corr[key] = (val - vi * vj) / (1 - vi * vj)
+                #     else:
+                #         continue
+                # exp_sorted = sorted(corr.items(), key=lambda item: abs(item[1]), reverse=True)
+
+                u, v = exp_sorted[0][0]
+                exp_value = abs(exp_sorted[0][1])
+
+                # print("iteration on %d, max expectation is %lf" % (optization_rounds, exp_value))
+                # print("--------------------------------------")
+                if exp_value - 1e-8 >= 0.5:
+                    break
+                optization_rounds -= 1
+
+            # if exp_value < 0.5:  # if the relation between two node is small, then run search method, 外层循环用
+            #     break
+            # sexp.append(exp_value)
             correlation = 1 if exp_sorted[0][1] - 1e-8 > 0 else -1
             pathg.add_edge(u, v, weight=correlation)
             if u > v:
@@ -235,16 +278,23 @@ class RQcover:
                     current_g.add_edge(u, nd, weight=correlation * current_g.adj[v][nd]["weight"])
                 else:
                     current_g.adj[u][nd]["weight"] += correlation * current_g.adj[v][nd]["weight"]
-                    # current_g.adj[nd][u]["weight"] = current_g.adj[u][nd]["weight"]
+
             current_g.remove_node(v)
             node_num = len(current_g.nodes)
 
         basic_sol = None
-        if node_threshold > 1:
+        if len(current_g.nodes) > 1:
             basic_sol = self.solve_basic_graph(current_g)
 
-        solution = self.get_solution(pathg, basic_sol)
-        return solution
+        if basic_sol is None or len(basic_sol) < node_sol:
+            tmp_sol = self.get_solution(pathg, basic_sol)
+            if basic_sol is None:
+                solution = tmp_sol
+            else:
+                solution = {**tmp_sol, **basic_sol}
+        else:
+            solution = basic_sol
+        return solution  # , sexp
 
     def run(self, is_parallel=False, mode="RQAOA"):
         """
@@ -271,7 +321,7 @@ if __name__ == '__main__':
 
     g = nx.Graph()
     nodes = [(0, 1), (1, 1), (2, 1)]
-    edges = [(0, 1, -1), (1, 2, -1)]
+    edges = [(0, 1, 1), (1, 2, -1)]
     # edges = [(0, 1, 3), (1, 2, 2), (0, 2, 1)]
     for nd in nodes:
         u, w = nd[0], nd[1]

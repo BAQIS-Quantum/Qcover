@@ -16,5 +16,6 @@ cirq-pasqal==0.13.0
 cirq-rigetti==0.13.0
 cirq-web==0.13.0
 qulacs==0.3.0
+pyquafu>=0.2.4
 git+git://github.com/jcmgray/quimb.git@develop
 git+git://github.com/jcmgray/cotengra.git
