@@ -1,0 +1,1 @@
+from Qcover.compiler.Qcovercompiler import CompilerforQAOA
