@@ -126,6 +126,7 @@ state expectation with Qcover, you can use the following code
     optimal_params = res['Optimal parameter value']
     
     # Compile and send the QAOA circuit to the quafu cloud.
+    # Token parameter should be set according to your own account
     # For more introduction see https://github.com/ScQ-Cloud/pyquafu
     token = "E-SowFQdKJ427YhZDGdxoNmOk2SB02xpgODiz_4WtAS.9dDOwUTNxgjN2EjOiAHelJCLzITM6ICZpJye.9JiN1IzUIJiOicGbhJCLiQ1VKJiOiAXe0Jye"
     cloud_backend = 'ScQ-P20'
@@ -142,10 +143,10 @@ state expectation with Qcover, you can use the following code
 
 The results obtained by running this example code are shown in the following two figures
 
-<div align="center">
-  <img src=./tests/test_compiler_graph.png>
-  <img src=./tests/test_compiler_res.png>
-</div>
+<figure class="half">
+  <img src=./tests/test_compiler_graph.png width="200"/>
+  <img src=./tests/test_compiler_res.png width="200"/>
+</figure>
 
 # How to contribute
 For information on how to contribute, please send an e-mail to members of developer of this project.

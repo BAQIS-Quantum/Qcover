@@ -40,6 +40,7 @@ res = qc.run()
 optimal_params = res['Optimal parameter value']
 
 # Compile and send the QAOA circuit to the quafu cloud.
+# Token parameter should be set according to your own account
 # For more introduction see https://github.com/ScQ-Cloud/pyquafu
 token = "E-SowFQdKJ427YhZDGdxoNmOk2SB02xpgODiz_4WtAS.9dDOwUTNxgjN2EjOiAHelJCLzITM6ICZpJye.9JiN1IzUIJiOicGbhJCLiQ1VKJiOiAXe0Jye"
 cloud_backend = 'ScQ-P20'
