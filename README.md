@@ -144,8 +144,7 @@ state expectation with Qcover, you can use the following code
 The results obtained by running this example code are shown in the following two figures
 
 <figure class="half">
-  <img src=./tests/test_compiler_graph.png width="200"/>
-  <img src=./tests/test_compiler_res.png width="200"/>
+  <img src=./tests/test_compiler_graph.png width="300"/><img src=./tests/test_compiler_res.png width="300"/>
 </figure>
 
 # How to contribute
