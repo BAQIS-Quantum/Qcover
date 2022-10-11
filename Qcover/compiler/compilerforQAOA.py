@@ -15,8 +15,16 @@ from quafu import QuantumCircuit as quafuQC
 
 
 class CompilerForQAOA:
-    """compilerforQAOA for compiling combinatorial optimization
-       problem graphs to quantum hardware.
+    """
+    compilerforQAOA is used to compile the combinatorial optimization problem weight graph
+    into a quantum hardware executable circuit and send it to the quafu cloud platform for execution.
+    Args:
+        g (networkx.Graph): Weight graph created by networkx.
+        p (int): QAOA algorithm layers
+        optimal_params (list): Optimal parameters of QAOA circuit calculated by Qcover.
+        apitoken (str): API token of your quafu account,
+                        you can get it on the quafu quantum computing cloud platform (http://quafu.baqis.ac.cn/).
+        cloud_backend (str): Currently you can choose from three quantum chips: 'ScQ-P10', 'ScQ-P20', 'ScQ-P50'
     """
 
     def __init__(self,
@@ -35,6 +43,7 @@ class CompilerForQAOA:
         self._edges = {(u, v, g.adj[u][v]['weight']) for u, v in list(g.edges())}
         self._logical_qubits = len(g.nodes())
         self._physical_qubits = self._logical_qubits
+        self._logi2phys_mapping = {}
 
     def random_layout_mapping(self):
         """
@@ -644,28 +653,68 @@ class CompilerForQAOA:
         plt.close()
         return scq_qasm
 
-    def run(self, shots=1024):
+    def run_online(self, shots=1024):
         openqasm, final_phys2logi_mapping, _ = self.graph_to_qasm()
+        self._logi2phys_mapping = {v: k for k, v in final_phys2logi_mapping.items()}
         scq_qasm = self.scq_qasm(openqasm)
-        # # # send to quafu cloud
+        # send to quafu cloud
         qubits = int(re.findall(r"\d+\.?\d*", scq_qasm.split('qreg')[1].split(';')[0])[0])
         q = quafuQC(qubits)
         q.from_openqasm(scq_qasm)
-        # q.draw_circuit()
         task = Task()
         task.load_account()
         task.config(backend=self._cloud_backend, shots=shots, compile=False)
         print("The quantum cloud backend is executing, please wait!")
         res = task.send(q)
         print("Task execution completed!")
-        results = {}
-        results['sampling results'] = res
-        results['final qubits mapping'] = final_phys2logi_mapping
-        return results
+        # results = {'sampling results': res, 'final qubits mapping': final_phys2logi_mapping}
+        return res
+
+    def send(self, wait=True, shots=1024, task_name: str = ''):
+        """
+        Send the task to the quafu cloud platform.
+        Args:
+            wait (bool): If you choose wait=Ture, you have to wait for the result
+                         to return, during which the program will not terminate.
+                         If you choose wait=False, you can submit tasks asynchronously
+                         without waiting online for the results to return.
+            shots (int): The number of sampling of quantum computer.
+            task_name (str): The name of the task so that you can query the task status
+                             on the quafu cloud platform later.
+        Returns:
+            task_id (str): The ID number of the task, which can uniquely identify the task.
+        """
+        openqasm, final_phys2logi_mapping, _ = self.graph_to_qasm()
+        self._logi2phys_mapping = {v: k for k, v in final_phys2logi_mapping.items()}
+        scq_qasm = self.scq_qasm(openqasm)
+        # send to quafu cloud
+        qubits = int(re.findall(r"\d+\.?\d*", scq_qasm.split('qreg')[1].split(';')[0])[0])
+        q = quafuQC(qubits)
+        q.from_openqasm(scq_qasm)
+        task = Task()
+        task.load_account()
+        task.config(backend=self._cloud_backend, shots=shots, compile=False)
+        task_id = task.send(q, wait=wait, name=task_name, group=task_name).taskid
+        print("The task has been submitted to the quafu cloud platform.\nThe task ID is '%s'" % task_id)
+        print("The task execution has completed and the result has been returned.")
+        return task_id
+
+    def task_status_query(self, task_id: str):
+        task = Task()
+        task.load_account()
+        task_status = task.retrieve(task_id).task_status
+        if task_status=='In Queue' or task_status=='Running':
+            print("The current task status is '%s', please wait." % task_status)
+        elif task_status=='Completed':
+            print("The task execution has completed and the result has been returned.")
+            res = task.retrieve(task_id)
+            return res
 
     def results_processing(self, results):
-        counts_ScQ0 = results['sampling results'].res
-        logi2phys_mapping = {v: k for k, v in results['final qubits mapping'].items()}
+        # counts_ScQ0 = results['sampling results'].res
+        # logi2phys_mapping = {v: k for k, v in results['final qubits mapping'].items()}
+        counts_ScQ0 = results.res
+        logi2phys_mapping = self._logi2phys_mapping
         counts_ScQ_new = self.big_endian_counts_rearrange(logi2phys_mapping, counts_ScQ0)
         counts_ScQ = sorted(counts_ScQ_new.items(), key=lambda x: x[1], reverse=True)
         counts_ScQ = [(item[0], item[1]) for item in counts_ScQ]
@@ -703,59 +752,3 @@ class CompilerForQAOA:
         print('cluster 1:', sorted(cut_node1))
         print('cluster 2:', sorted(cut_node2))
         print('cost:', counts_energy[0][1])
-
-if __name__ == "__main__":
-    from Qcover.core import Qcover
-    from Qcover.backends import CircuitByCirq, CircuitByQulacs, CircuitByQiskit
-    from Qcover.optimizers import COBYLA
-    import networkx as nx
-    import matplotlib.pyplot as plt
-
-    p = 1
-    g = nx.Graph()
-    nodes = [(0, 0), (1, 0), (2, 0)]
-    edges = [(0, 1, 1), (1, 2, 1)]
-
-    # nodes = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
-    # edges = [(0, 1, -1), (1, 2, -1), (2, 3, -1), (3, 4, -1)]
-
-    for nd in nodes:
-        u, w = nd[0], nd[1]
-        g.add_node(int(u), weight=int(w))
-    for ed in edges:
-        u, v, w = ed[0], ed[1], ed[2]
-        g.add_edge(int(u), int(v), weight=int(w))
-
-    # qiskit_bc = CircuitByQiskit()
-    # qulacs_bc = CircuitByProjectq()
-    criq_bc = CircuitByCirq()
-    # qulacs_bc = CircuitByQton()
-    # qulacs_bc = CircuitByQulacs()
-    # qulacs_bc = CircuitByTensor()
-    optc = COBYLA(options={'tol': 1e-3, 'disp': True})
-    qc = Qcover(g, p=p, optimizer=optc, backend=criq_bc)
-    res = qc.run()
-    optimal_params = res['Optimal parameter value']
-    print('optimal_params:', optimal_params)
-
-    # draw weighted graph
-    new_labels = dict(map(lambda x: ((x[0], x[1]), str(x[2]['weight'])), g.edges(data=True)))
-    # pos = nx.spring_layout(g)
-    pos = nx.circular_layout(g)
-    nx.draw_networkx(g, pos=pos, node_size=500, font_size=15, node_color='y')
-    # nx.draw_networkx_edge_labels(g, pos=pos, edge_labels=new_labels, font_size=15)
-    nx.draw_networkx_edges(g, pos, width=2, edge_color='g', arrows=False)
-    plt.show()
-
-    # compiler and send to quafu cloud
-    from Qcover.compiler import CompilerForQAOA
-
-    # HZ_token = "cJNxO0iQ708Nt61AO_NqRBTv-v5NyBMW_GmmV5decbC.Qf0YTOwETM1YjNxojIwhXZiwiI4YjI6ICZpJye.9JiN1IzUIJiOicGbhJCLiQ1VKJiOiAXe0Jye"
-    BD_token = "M0qLC2kVnYjLchbIle-leCAzPTdAKyox5AqO9YO-eRF.9FTN2MzM3UjN2EjOiAHelJCL3ETM6ICZpJye.9JiN1IzUIJiOicGbhJCLiQ1VKJiOiAXe0Jye"
-    cloud_backend = "ScQ-P10"
-    shots = 1024
-    qaoa_compiler = CompilerForQAOA(g, p=p, optimal_params=optimal_params, apitoken=BD_token,
-                                    cloud_backend=cloud_backend)
-    quafu_solver = qaoa_compiler.run(shots=shots)
-    counts_energy = qaoa_compiler.results_processing(quafu_solver)
-    qaoa_compiler.visualization(counts_energy)
