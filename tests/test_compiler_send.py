@@ -42,11 +42,11 @@ optimal_params = res['Optimal parameter value']
 # Compile and send the QAOA circuit to the quafu cloud.
 # Token parameter should be set according to your own account
 # For more introduction see https://github.com/ScQ-Cloud/pyquafu
-token = "E-SowFQdKJ427YhZDGdxoNmOk2SB02xpgODiz_4WtAS.9dDOwUTNxgjN2EjOiAHelJCLzITM6ICZpJye.9JiN1IzUIJiOicGbhJCLiQ1VKJiOiAXe0Jye"
-cloud_backend = 'ScQ-P10'
+token = "IB2Vz-3bqNNRHPCIw1RcdBMgPq8LNeGZe4KbBYDE_0A.9BzN5MjMwkjN2EjOiAHelJCLzITM6ICZpJye.9JiN1IzUIJiOicGbhJCLiQ1VKJiOiAXe0Jye"
+cloud_backend = 'ScQ-P20'
 qcover_compiler = CompilerForQAOA(graph, p=p, optimal_params=optimal_params, apitoken=token, cloud_backend=cloud_backend)
 task_id = qcover_compiler.send(wait=True, shots=5000, task_name='MaxCut')
-# If you choose wait=Ture, you have to wait for the result to return.
+# If you choose wait=True, you have to wait for the result to return.
 # If you choose wait=False, you can execute the following command to query the result status at any time,
 # and the result will be returned when the task is completed.
 quafu_solver = qcover_compiler.task_status_query(task_id)

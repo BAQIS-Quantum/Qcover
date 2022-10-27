@@ -303,19 +303,13 @@ class CircuitByQiskit(Backend):
 
         params = params.flatten()
         _, circ = self.graph_to_circuit(params, self._origin_graph)
-        circ.draw(output='mpl', interactive=True)
+        # circ.draw(output='mpl', interactive=True)
         circ.measure_all()   # if use sample method, can't use measure
 
         sim = Aer.get_backend('qasm_simulator')
         transpiled_qc = transpile(circ, sim)
         job_sim = sim.run(transpiled_qc, shots=1024)
         hist = job_sim.result().get_counts(transpiled_qc)
-        # for key, val in hist.items():
-        #     print("%s has %s" % (key, str(val)))
-
-        # from qiskit.visualization import plot_histogram
-        # plot_histogram(hist)
-        # plt.show()
         return hist
 
     def sampling_visualization(self, counts):

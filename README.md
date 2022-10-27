@@ -23,26 +23,40 @@ More example codes and tutorials can be found in the tests folder here on GitHub
     from Qcover.core import Qcover
     from Qcover.backends import CircuitByQulacs
     from Qcover.optimizers import COBYLA
+    from Qcover.utils import generate_graph_data, generate_weighted_graph
+    import networkx as nx
     
     node_num, edge_num = 6, 9
     p = 1
-    nodes, edges = Qcover.generate_graph_data(node_num, edge_num)
-    g = Qcover.generate_weighted_graph(nodes, edges)
+    nodes, edges = generate_graph_data(node_num, edge_num)
+    g = generate_weighted_graph(nodes, edges)
+   
+    # If you want to customize the Ising weight graph model, you can use the following code
+    # g = nx.Graph()
+    # nodes = [(0, 3), (1, 2), (2, 1), (3, 1)]
+    # edges = [(0, 1, 1), (0, 2, 1), (3, 1, 2), (2, 3, 3)]
+    # for nd in nodes:
+    #    u, w = nd[0], nd[1]
+    #    g.add_node(int(u), weight=int(w))
+    # for ed in edges:
+    #     u, v, w = ed[0], ed[1], ed[2]
+    #     g.add_edge(int(u), int(v), weight=int(w))
+
     qulacs_bc = CircuitByQulacs()
     optc = COBYLA(options={'tol': 1e-3, 'disp': True})
     qc = Qcover(g, p=p, optimizer=optc, backend=qulacs_bc)
     res = qc.run()
     print("the result of problem is:\n", res)
-    qc.backend.visualization()
+    qc.backend.optimization_visualization()
     ```
 2. Solving specific binary combinatorial optimization problems, Calculating the expectation value of the Hamiltonian of the circuit which corresponding to the problem.
 for example, if you want to using Qcover to solve a max-cut problem, just coding below:
     ```python
-    import numpy as np
     from Qcover.core import Qcover
     from Qcover.backends import CircuitByQiskit
     from Qcover.optimizers import COBYLA
     from Qcover.applications.max_cut import MaxCut
+   
     node_num, degree = 6, 3
     p = 1
     mxt = MaxCut(node_num=node_num, node_degree=degree)
@@ -52,36 +66,11 @@ for example, if you want to using Qcover to solve a max-cut problem, just coding
     qc = Qcover(ising_g, p=p, optimizer=optc, backend=qiskit_bc)
     res = qc.run()
     print("the result of problem is:\n", res)
-    qc.backend.visualization()
+    counts = qc.backend.get_result_counts(res['Optimal parameter value'])
+    qc.backend.sampling_visualization(counts)
     ```
-3. If you want to customize the Ising weight graph model and calculate the ground
-state expectation with Qcover, you can use the following code
-    ```python
-    import numpy as np
-    import networkx as nx
-    from Qcover.core import Qcover
-    from Qcover.backends import CircuitByTensor
-    from Qcover.optimizers import COBYLA
-
-    ising_g = nx.Graph()
-    nodes = [(0, 3), (1, 2), (2, 1), (3, 1)]
-    edges = [(0, 1, 1), (0, 2, 1), (3, 1, 2), (2, 3, 3)]
-    for nd in nodes:
-       u, w = nd[0], nd[1]
-       ising_g.add_node(int(u), weight=int(w))
-    for ed in edges:
-        u, v, w = ed[0], ed[1], ed[2]
-    ising_g.add_edge(int(u), int(v), weight=int(w))
-
-    p = 2
-    optc = COBYLA(options={'tol': 1e-3, 'disp': True})
-    ts_bc = CircuitByTensor()
-    qc = Qcover(ising_g, p=p, optimizer=optc, backend=ts_bc)
-    res = qc.run()
-    print("the result of problem is:\n", res)
-    qc.backend.visualization()
-    ```
-4. If you want to solve combinatorial optimization problems with real quantum computers on
+   
+3. If you want to solve combinatorial optimization problems with real quantum computers on
  quafu quantum computing cloud platform, you can refer to the following example code
     ```python
     from Qcover.core import Qcover
@@ -106,7 +95,6 @@ state expectation with Qcover, you can use the following code
     for ed in edges:
         u, v, w = ed[0], ed[1], ed[2]
         graph.add_edge(int(u), int(v), weight=int(w))
-    
     
     # draw weighted graph to be calculated
     new_labels = dict(map(lambda x: ((x[0], x[1]), str(x[2]['weight'])), graph.edges(data=True)))

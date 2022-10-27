@@ -3,7 +3,6 @@ import os
 import time
 import warnings
 from collections import defaultdict, Callable
-import numpy as np
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, cpu_count
 import quimb as qu
@@ -134,6 +133,12 @@ class CircuitByTensor(Backend):
         self._expectation_path.append(res)
         return res
 
+    def get_result_counts(self, params):
+        pass
+
+    def sampling_visualization(self, counts):
+        pass
+
     def optimization_visualization(self):
         plt.figure()
         plt.plot(range(1, len(self._expectation_path) + 1), self._expectation_path, "ob-", label="quimb")
@@ -141,4 +146,6 @@ class CircuitByTensor(Backend):
         plt.xlabel('Number of iterations')
         plt.legend()
         plt.show()
+
+
 

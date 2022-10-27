@@ -8,7 +8,7 @@ import pkgutil
 # to be placed *before* the wrapper imports or any non-import code AND *before*
 # importing the package you want to allow extensions for (in this case `backends`).
 __path__ = pkgutil.extend_path(__path__, __name__)
-__version__ = '2.1.1'
+__version__ = '2.1.2'
 __license__ = 'Apache-2.0 License'
 
 from Qcover.applications import *

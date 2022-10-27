@@ -156,8 +156,8 @@ class BuildLibrary:
         sorted_weighted_edges = sorted(directed_weighted_edges, key=lambda x: x[2], reverse=True)
         save_substructure = {'calibration_time': self.calibration_time, 'structure': sorted_weighted_edges, 'substructure_dict': substructure_dict,
                              'int_to_qubit': int_to_qubit, 'qubit_to_int': qubit_to_int}
-        if os.path.exists('LibSubstructure_' + self.backend + '.txt'):
-            os.remove('LibSubstructure_' + self.backend + '.txt')
+        # if os.path.exists('LibSubstructure_' + self.backend + '.txt'):
+        #     os.remove('LibSubstructure_' + self.backend + '.txt')
         with open('LibSubstructure_' + self.backend + '.txt', 'w') as file:
             # file.write(json.dumps(save_substructure))
             file.write(str(save_substructure))

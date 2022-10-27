@@ -89,7 +89,7 @@ class CompilerForQAOA:
         for i in range(len(graph_nodes)):
             logical_circ.h(i)
         for k in range(0, self._p):
-            logical_circ.barrier()
+            # logical_circ.barrier()
             for u, v in graph_nodes.items():
                 logical_circ.rz(2 * gamma[k] * v, u)
             for u, v in graph_edges.items():
@@ -558,8 +558,8 @@ class CompilerForQAOA:
         task.load_account()
         task.config(backend=backend)
         backend_info = task.get_backend_info()
+        plt.close()
         calibration_time = backend_info['full_info']["calibration_time"]
-
         logical_qubits = int(re.findall(r"\d+\.?\d*", openqasm.split('qreg')[1].split(';')[0])[0])
 
         build_library = BuildLibrary(backend=backend, fidelity_threshold=96)
@@ -585,6 +585,7 @@ class CompilerForQAOA:
                                     'qreg q[' + str(physical_qubits))
 
         if backend == "ScQ-P50":
+            scq_qasm = re.sub(r'barrier.*\n', "", scq_qasm)
             if not os.path.exists('LibSubchain_' + backend + '.txt'):
                 # print("The one-dimensional chain library of " + backend + " quantum chip does not exist, and is being created!")
                 chain_data = build_library.chain_library_2D(substructure_data)
@@ -653,23 +654,6 @@ class CompilerForQAOA:
         plt.close()
         return scq_qasm
 
-    def run_online(self, shots=1024):
-        openqasm, final_phys2logi_mapping, _ = self.graph_to_qasm()
-        self._logi2phys_mapping = {v: k for k, v in final_phys2logi_mapping.items()}
-        scq_qasm = self.scq_qasm(openqasm)
-        # send to quafu cloud
-        qubits = int(re.findall(r"\d+\.?\d*", scq_qasm.split('qreg')[1].split(';')[0])[0])
-        q = quafuQC(qubits)
-        q.from_openqasm(scq_qasm)
-        task = Task()
-        task.load_account()
-        task.config(backend=self._cloud_backend, shots=shots, compile=False)
-        print("The quantum cloud backend is executing, please wait!")
-        res = task.send(q)
-        print("Task execution completed!")
-        # results = {'sampling results': res, 'final qubits mapping': final_phys2logi_mapping}
-        return res
-
     def send(self, wait=True, shots=1024, task_name: str = ''):
         """
         Send the task to the quafu cloud platform.
@@ -696,7 +680,6 @@ class CompilerForQAOA:
         task.config(backend=self._cloud_backend, shots=shots, compile=False)
         task_id = task.send(q, wait=wait, name=task_name, group=task_name).taskid
         print("The task has been submitted to the quafu cloud platform.\nThe task ID is '%s'" % task_id)
-        print("The task execution has completed and the result has been returned.")
         return task_id
 
     def task_status_query(self, task_id: str):
@@ -711,8 +694,6 @@ class CompilerForQAOA:
             return res
 
     def results_processing(self, results):
-        # counts_ScQ0 = results['sampling results'].res
-        # logi2phys_mapping = {v: k for k, v in results['final qubits mapping'].items()}
         counts_ScQ0 = results.res
         logi2phys_mapping = self._logi2phys_mapping
         counts_ScQ_new = self.big_endian_counts_rearrange(logi2phys_mapping, counts_ScQ0)
