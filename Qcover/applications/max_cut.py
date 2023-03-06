@@ -72,7 +72,7 @@ class MaxCut:
             for j in range(self._node_num):
                 if i == j:
                     continue
-                qubo_mat[i][j] = qubo_mat[i][j] / 2.0
+                qubo_mat[i][j] = qubo_mat[i][j]
 
         shift = 0.0
         for i, j in self._graph.edges:

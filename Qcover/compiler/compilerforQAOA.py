@@ -9,7 +9,7 @@ import copy
 import re
 import matplotlib.pyplot as plt
 import os
-from Qcover.compiler.hardware_library import BuildLibrary
+from hardware_library import BuildLibrary
 from quafu import User, Task
 from quafu import QuantumCircuit as quafuQC
 
@@ -167,14 +167,16 @@ class CompilerForQAOA:
                 rzz_gates_cycle[item[0]] = [0, item[1]]
         return pattern_rzz_swap, rzz_gates_cycle
 
-    def best_initial_mapping(self, rzz_gates_cycle):
+    def best_initial_mapping(self, rzz_gates_cycle, truncation=5):
         simple_mapping = self.simple_layout_mapping()
         sorted_nodes = self.sorted_nodes_degree()
         rzz_gates_cycle = {tuple(sorted(k)): v[0] for k, v in rzz_gates_cycle.items()}
         mapping_logi2phys_list = []
-        mapping_logi2phys_list.append(({sorted_nodes[0]: 0}, 0))
+        # mapping_logi2phys_list.append(({sorted_nodes[0]: 0}, 0))
+        for n in range(len(sorted_nodes)):
+            mapping_logi2phys_list.append(({sorted_nodes[0]: n}, 0))
         last_cycle = max(rzz_gates_cycle.values())
-        truncation = 5
+        # truncation = truncation
         # The larger the truncation, the more likely it is to find the optimal initial mapping,
         # but the time cost increases.
         for item in range(1, len(sorted_nodes)):
@@ -198,11 +200,16 @@ class CompilerForQAOA:
                             q2p_path[node] = phys_bit
                             if max_depth > deepest_cycle:
                                 deepest_cycle = max_depth
-                            if [depth for _, depth in update_mapping_list].count(deepest_cycle) < truncation:
+                            if deepest_cycle == 0:
                                 update_mapping_list.append((q2p_path, deepest_cycle))
+                            else:
+                                if [depth for _, depth in update_mapping_list].count(deepest_cycle) < truncation:
+                                    update_mapping_list.append((q2p_path, deepest_cycle))
             mapping_logi2phys_list = copy.deepcopy(update_mapping_list)
 
         mapping_logi2phys_list = sorted(mapping_logi2phys_list, key=lambda x: x[1])
+        # print(mapping_logi2phys_list[0:50])
+        # print(len(mapping_logi2phys_list))
         if mapping_logi2phys_list:
             best_phys2logi_mapping = {v: k for k, v in mapping_logi2phys_list[0][0].items()}
         else:
@@ -499,6 +506,7 @@ class CompilerForQAOA:
         qubits_mapping = self.simple_layout_mapping()
         pattern_rzz_swap, rzz_gates_cycle = self.scheduled_pattern_rzz_swap(qubits_mapping)
         best_phys2logi_mapping = self.best_initial_mapping(rzz_gates_cycle)
+        print('best',best_phys2logi_mapping)
         pattern_rzz_swap_new = defaultdict(list)
         for k, v in pattern_rzz_swap.items():
             for gate in v:
@@ -513,42 +521,6 @@ class CompilerForQAOA:
         ScQ_circuit.measure_all()
         openqasm = ScQ_circuit.qasm()
         return openqasm, final_phys2logi_mapping, ScQ_circuit
-
-    def little_endian_counts_rearrange(self, logi2phys_mapping, counts):
-        qubit_str = list(counts.keys())
-        counts_new = defaultdict(list)
-        for i in range(len(qubit_str)):
-            str = ''
-            for k in range(len(logi2phys_mapping)):
-                str = str + qubit_str[i][::-1][logi2phys_mapping[k]]
-            counts_new[str[::-1]] = counts[qubit_str[i]]
-        return counts_new
-
-    def big_endian_counts_rearrange(self, logi2phys_mapping, counts):
-        qubit_str = list(counts.keys())
-        counts_new = defaultdict(list)
-        for i in range(len(qubit_str)):
-            str = ''
-            for k in range(len(logi2phys_mapping)):
-                str = str + qubit_str[i][::][logi2phys_mapping[k]]
-            counts_new[str[::-1]] = counts[qubit_str[i]]
-        return counts_new
-
-    def graph_sampling_energy(self, counts):
-        # Obtain QAOA energy from circuit sampling results
-        counts_energy = {}
-        for i in range(len(counts)):
-            # 0 -> -1, 1 -> 1
-            result1 = [int(u) for u in list(counts[i][0])]
-            # result1.reverse()
-            energy1 = 0
-            for node in self._nodes:
-                energy1 = energy1 + node[1] * (2 * result1[node[0]] - 1)
-            for edge in self._edges:
-                energy1 = energy1 + edge[2] * (2 * result1[edge[0]] - 1) * (2 * result1[edge[1]] - 1)
-            counts_energy[counts[i]] = energy1
-        counts_energy = sorted(counts_energy.items(), key=lambda x: x[1])
-        return counts_energy
 
     def scq_qasm(self, openqasm):
         user = User()
@@ -693,10 +665,70 @@ class CompilerForQAOA:
             res = task.retrieve(task_id)
             return res
 
+    def right_left_counts_rearrange(self, logi2phys_mapping, counts):
+        # The bits are arranged as 0, 1, 2,... from right to the left.
+        qubit_str = list(counts.keys())
+        counts_new = defaultdict(list)
+        for i in range(len(qubit_str)):
+            str = ''
+            for k in range(len(logi2phys_mapping)):
+                str = str + qubit_str[i][::-1][logi2phys_mapping[k]]
+            counts_new[str[::-1]] = counts[qubit_str[i]]
+        return counts_new
+
+    def left_right_counts_rearrange(self, logi2phys_mapping, counts):
+        # The bits are arranged as 0, 1, 2,... from left to the right.
+        qubit_str = list(counts.keys())
+        counts_new = defaultdict(list)
+        for i in range(len(qubit_str)):
+            str = ''
+            for k in range(len(logi2phys_mapping)):
+                str = str + qubit_str[i][::][logi2phys_mapping[k]]
+            counts_new[str] = counts[qubit_str[i]]
+        return counts_new
+
+    def graph_sampling_energy_ising(self, counts):
+        # Obtain QAOA energy from circuit sampling results
+        counts_energy = {}
+        for i in range(len(counts)):
+            # 0 -> -1, 1 -> 1
+            result1 = [int(u) for u in list(counts[i][0])]
+            # result1.reverse()
+            energy1 = 0
+            for node in self._nodes:
+                energy1 = energy1 + node[1] * (2 * result1[node[0]] - 1)
+            for edge in self._edges:
+                energy1 = energy1 + 2* edge[2] * (2 * result1[edge[0]] - 1) * (2 * result1[edge[1]] - 1)
+            counts_energy[counts[i]] = energy1
+        counts_energy = sorted(counts_energy.items(), key=lambda x: x[1])
+        return counts_energy
+
+    def graph_sampling_energy_qubo(self, counts):
+        # Obtain QUBO cost from circuit sampling results
+        counts_energy = {}
+        import numpy as np
+        qubo_mat = np.zeros([len(self._nodes), len(self._nodes)])
+        ising_mat = np.zeros([len(self._nodes), len(self._nodes)])
+        for edge in self._edges:
+            ising_mat[edge[0], edge[1]] = edge[2]
+            ising_mat[edge[1], edge[0]] = edge[2]
+            qubo_mat[edge[0], edge[1]] = 4*edge[2]/2.
+            qubo_mat[edge[1], edge[0]] = 4*edge[2]/2.
+        for node in self._nodes:
+            ising_mat[node[0],node[0]] = node[1]
+            qubo_mat[node[0],node[0]] = (node[1]-sum(2.*qubo_mat[node[0]]/4.))*2
+        for i in range(len(counts)):
+            result1 = np.array([int(u) for u in list(counts[i][0])])
+            energy1 = np.dot(np.dot(result1, qubo_mat), result1)
+            counts_energy[counts[i]] = energy1
+        counts_energy = sorted(counts_energy.items(), key=lambda x: x[1])
+        # print('qubo_mat',qubo_mat)
+        return counts_energy
+
     def results_processing(self, results):
         counts_ScQ0 = results.res
         logi2phys_mapping = self._logi2phys_mapping
-        counts_ScQ_new = self.big_endian_counts_rearrange(logi2phys_mapping, counts_ScQ0)
+        counts_ScQ_new = self.left_right_counts_rearrange(logi2phys_mapping, counts_ScQ0)
         counts_ScQ = sorted(counts_ScQ_new.items(), key=lambda x: x[1], reverse=True)
         counts_ScQ = [(item[0], item[1]) for item in counts_ScQ]
 
@@ -704,32 +736,62 @@ class CompilerForQAOA:
             if elem[1] == 0:
                 counts_ScQ.remove(elem)
 
-        counts_energy = self.graph_sampling_energy(counts_ScQ)
+        counts_energy = self.graph_sampling_energy_qubo(counts_ScQ)
+        print('Results ((qubits str, number of sampling), QUBO Cost):\n', counts_energy)
         return counts_energy
 
-    def visualization(self, counts_energy):
+    def visualization(self, counts_energy, problem='MaxCut', solutions=3, problem_graph=None):
         # draw result
         plt.close()
-        optimal_solution = counts_energy[0][0][0]
-        cut_node1 = []
-        cut_node2 = []
-        for i in range(len(optimal_solution)):
-            if optimal_solution[i] == '0':
-                cut_node1.append(len(optimal_solution) - 1 - i)
-            else:
-                cut_node2.append(len(optimal_solution) - 1 - i)
-        # new_labels = dict(map(lambda x: ((x[0], x[1]), str(x[2]['weight'])), self._g.edges(data=True)))
-        pos = nx.spring_layout(self._g)
-        # pos = nx.circular_layout(self._g)
-        # nx.draw_networkx_edge_labels(g, pos=pos, edge_labels=new_labels, font_size=15)
-        nx.draw_networkx(self._g, pos=pos, nodelist=cut_node1, node_size=500, node_color='c', font_size=15, width=2)
-        nx.draw_networkx(self._g, pos=pos, nodelist=cut_node2, node_size=500, node_color='r', font_size=15, width=2)
-        nx.draw_networkx_edges(self._g, pos, width=2, edge_color='g', arrows=False)
-        # plt.axis('off')
-        plt.show()
-
-        print('Solutions ((qubits str, number of sampling), energy):\n', counts_energy)
         print('Send results to client:')
-        print('cluster 1:', sorted(cut_node1))
-        print('cluster 2:', sorted(cut_node2))
-        print('cost:', counts_energy[0][1])
+        if problem=='MaxCut':
+            for s in range(solutions):
+                optimal_solution = counts_energy[s][0][0]
+                cut_node1 = []
+                cut_node2 = []
+                for i in range(len(optimal_solution)):
+                    if optimal_solution[i] == '0':
+                        cut_node1.append(i)
+                    else:
+                        cut_node2.append(i)
+                pos = nx.spring_layout(self._g)
+                # pos = nx.circular_layout(self._g)
+                nx.draw_networkx(self._g, pos=pos, nodelist=cut_node1, node_size=500, node_color='c', font_size=15, width=2)
+                nx.draw_networkx(self._g, pos=pos, nodelist=cut_node2, node_size=500, node_color='r', font_size=15, width=2)
+                nx.draw_networkx_edges(self._g, pos, width=2, edge_color='g', arrows=False)
+                # plt.axis('off')
+                plt.tight_layout()
+                plt.show()
+                print('======== Solution ' + str(1+s) + ' ========')
+                print('Cluster 1:', sorted(cut_node1))
+                print('Cluster 2:', sorted(cut_node2))
+                print('Cost (QUBO):', counts_energy[s][1])
+        elif problem=='GraphColoring':
+            import matplotlib.colors
+            color_list = ['r', 'c', 'b', 'y', 'm']
+            color_list = color_list + list(matplotlib.colors.cnames.values())
+            nodes = len(problem_graph.nodes)
+            color_num = int(len(counts_energy[0][0][0])/nodes)
+            for s in range(solutions):
+                print('======== Solution ' + str(1 + s) + ' ========')
+                optimal_solution = counts_energy[s][0][0]
+                qubo_bits = []
+                for n in range(0, nodes):
+                    qubo_bits.append(optimal_solution[n*color_num:(n+1)*color_num])
+                color_dic = {}
+                for k in range(nodes):
+                    color_dic.setdefault(qubo_bits[k], []).append(k)
+                pos = nx.spring_layout(problem_graph)
+                # pos = nx.circular_layout(self._g)
+                color = 0
+                for bit, node_list in color_dic.items():
+                    nx.draw_networkx(problem_graph, pos=pos, nodelist=node_list, node_size=500, node_color=color_list[color], font_size=15, width=2)
+                    color = color + 1
+                    print('Coloring ' + str(color)+ ':', sorted(node_list))
+                nx.draw_networkx_edges(problem_graph, pos, width=2, edge_color='g', arrows=False)
+                # plt.axis('off')
+                plt.tight_layout()
+                plt.show()
+                print('Cost (QUBO):', counts_energy[s][1])
+        else:
+            print('The current version does not support visualization of this type of problem!')

@@ -23,11 +23,11 @@ class Qcircuit:
 
     # num_qubits = 0
     # state = None
-    def __init__(self, num_qubits=1, mode="statevector"):
+    def __init__(self, num_qubits=1, backend="statevector"):
         self.num_qubits = num_qubits
         self.state = np.zeros(2**num_qubits, complex)
         self.state[0] = 1.0
-        self.mode = mode
+        self.backend = backend
 
     def apply_tensor(self, gate, num_qubits, *qubits):
         # based on `numpy.tensordot` and `numpy.einsum`
@@ -53,8 +53,8 @@ class Qcircuit:
         return None
 
     def _apply_1q_(self, gate, qubit):
-        L = 2**qubit
-        for i in range(0, 2**self.num_qubits, 2**(qubit + 1)):
+        L = int(2**qubit)
+        for i in range(0, int(2**self.num_qubits), int(2**(qubit + 1))):
             for j in range(i, i + L):
                 self.state[j], \
                 self.state[j + L] = np.matmul(gate, [
@@ -107,7 +107,7 @@ class Qcircuit:
         gate = np.array(
             [[1, 1.],
              [1, -1.]]) * np.sqrt(0.5)
-        if self.mode == "tensor":
+        if self.backend == "tensor":
             self.apply_tensor(gate, 1, qubit)
         else:
             self._apply_1q_(gate, qubit)
@@ -118,7 +118,7 @@ class Qcircuit:
             [np.exp(-1j * theta * 0.5), 0],
             [0, np.exp(1j * theta * 0.5)],
         ])
-        if self.mode == "tensor":
+        if self.backend == "tensor":
             self.apply_tensor(gate, 1, qubit)
         else:
             self._apply_1q_(gate, qubit)
@@ -129,7 +129,7 @@ class Qcircuit:
         gate = np.array([
             [np.cos(t), -1j * np.sin(t)], 
             [-1j * np.sin(t), np.cos(t)]])
-        if self.mode == "tensor":
+        if self.backend == "tensor":
             self.apply_tensor(gate, 1, qubit)
         else:
             self._apply_1q_(gate, qubit)
@@ -138,7 +138,7 @@ class Qcircuit:
     def rzz(self, qubit1, qubit2, theta):
         a, b = np.exp(-0.5j*theta), np.exp(0.5j*theta)
         gate = np.diag([a, b, b, a])
-        if self.mode == "tensor":
+        if self.backend == "tensor":
             self.apply_tensor(gate, 2, qubit1, qubit2)
         else:
             self._apply_2q_(gate, qubit1, qubit2)
