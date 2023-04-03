@@ -9,7 +9,7 @@ import copy
 import re
 import matplotlib.pyplot as plt
 import os
-from hardware_library import BuildLibrary
+from .hardware_library import BuildLibrary
 from quafu import User, Task
 from quafu import QuantumCircuit as quafuQC
 
@@ -527,7 +527,7 @@ class CompilerForQAOA:
         user.save_apitoken(self._apitoken)
         backend = self._cloud_backend
         task = Task()
-        task.load_account()
+        # task.load_account()
         task.config(backend=backend)
         backend_info = task.get_backend_info()
         plt.close()
@@ -556,19 +556,19 @@ class CompilerForQAOA:
         scq_qasm = openqasm.replace('qreg q[' + str(logical_qubits),
                                     'qreg q[' + str(physical_qubits))
 
-        if backend == "ScQ-P50":
+        if backend == "ScQ-P136":
             scq_qasm = re.sub(r'barrier.*\n', "", scq_qasm)
             if not os.path.exists('LibSubchain_' + backend + '.txt'):
-                # print("The one-dimensional chain library of " + backend + " quantum chip does not exist, and is being created!")
+                print("The one-dimensional chain library of " + backend + " quantum chip does not exist, and is being created!")
                 chain_data = build_library.chain_library_2D(substructure_data)
-                # print('Complete building!')
+                print('Complete building!')
             else:
                 with open('LibSubchain_' + backend + '.txt', 'r', encoding='utf-8') as f:
                     chain_data = eval(f.read())
                     if chain_data['calibration_time'] != calibration_time:
-                        # print("Waiting: Building a library of one-dimensional chain structures for the " + backend + " quantum chip!")
+                        print("Waiting: Building a library of one-dimensional chain structures for the " + backend + " quantum chip!")
                         chain_data = build_library.chain_library_2D(substructure_data)
-                        # print('Complete building!')
+                        print('Complete building!')
 
             longset_chain = max(chain_data['subchain_dict'].keys())
             if logical_qubits > longset_chain:
@@ -648,7 +648,7 @@ class CompilerForQAOA:
         q = quafuQC(qubits)
         q.from_openqasm(scq_qasm)
         task = Task()
-        task.load_account()
+        # task.load_account()
         task.config(backend=self._cloud_backend, shots=shots, compile=False)
         task_id = task.send(q, wait=wait, name=task_name, group=task_name).taskid
         print("The task has been submitted to the quafu cloud platform.\nThe task ID is '%s'" % task_id)
@@ -656,7 +656,7 @@ class CompilerForQAOA:
 
     def task_status_query(self, task_id: str):
         task = Task()
-        task.load_account()
+        # task.load_account()
         task_status = task.retrieve(task_id).task_status
         if task_status=='In Queue' or task_status=='Running':
             print("The current task status is '%s', please wait." % task_status)

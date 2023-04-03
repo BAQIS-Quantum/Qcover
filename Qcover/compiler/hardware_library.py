@@ -16,7 +16,7 @@ class BuildLibrary:
         self.backend = backend
         self.fidelity_threshold = fidelity_threshold
         task = Task()
-        task.load_account()
+        # task.load_account()
         task.config(backend=self.backend)
         self.backend_info = task.get_backend_info()
         self.calibration_time = self.backend_info['full_info']["calibration_time"]
