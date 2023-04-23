@@ -6,9 +6,7 @@ import copy
 import math
 from collections import defaultdict
 import os
-import re
 from quafu import Task
-import numpy as np
 
 
 class BuildLibrary:
@@ -16,7 +14,6 @@ class BuildLibrary:
         self.backend = backend
         self.fidelity_threshold = fidelity_threshold
         task = Task()
-        # task.load_account()
         task.config(backend=self.backend)
         self.backend_info = task.get_backend_info()
         self.calibration_time = self.backend_info['full_info']["calibration_time"]
@@ -33,27 +30,9 @@ class BuildLibrary:
         """
 
         json_topo_struct = self.backend_info['full_info']["topological_structure"]
+        int_to_qubit = self.backend_info['mapping']
+        qubit_to_int = {v: k for k, v in int_to_qubit.items()}
 
-        # # not ordered
-        # qubits_list = []
-        # for gate in json_topo_struct.keys():
-        #     qubit = gate.split('_')
-        #     if qubit[0] not in qubits_list:
-        #         qubits_list.append(qubit[0])
-        #     if qubit[1] not in qubits_list:
-        #         qubits_list.append(qubit[1])
-
-        # # ordered
-        qubits_list = []
-        for gate in json_topo_struct.keys():
-            qubit = gate.split('_')
-            qubits_list.append(qubit[0])
-            qubits_list.append(qubit[1])
-        qubits_list = list(set(qubits_list))
-        qubits_list = sorted(qubits_list, key=lambda x: int(re.findall(r"\d+", x)[0]))
-
-        int_to_qubit = {k: v for k, v in enumerate(qubits_list)}
-        qubit_to_int = {v: k for k, v in enumerate(qubits_list)}
         directed_weighted_edges = []
         weighted_edges = []
         edges_dict = {}
@@ -156,15 +135,50 @@ class BuildLibrary:
         sorted_weighted_edges = sorted(directed_weighted_edges, key=lambda x: x[2], reverse=True)
         save_substructure = {'calibration_time': self.calibration_time, 'structure': sorted_weighted_edges, 'substructure_dict': substructure_dict,
                              'int_to_qubit': int_to_qubit, 'qubit_to_int': qubit_to_int}
-        # if os.path.exists('LibSubstructure_' + self.backend + '.txt'):
-        #     os.remove('LibSubstructure_' + self.backend + '.txt')
-        with open('LibSubstructure_' + self.backend + '.txt', 'w') as file:
-            # file.write(json.dumps(save_substructure))
+
+        dir_path = os.path.dirname(os.path.abspath(__file__))
+        folder_path = os.path.join(dir_path, "backend_library")
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
+        file_name = 'LibSubstructure_' + self.backend + '.txt'
+        file_path = os.path.join(folder_path, file_name)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        with open(file_path, 'w') as file:
             file.write(str(save_substructure))
+
         return save_substructure
 
-    def chain_library_2D(self, substructure_data):
-        # find one-dimensional chain
+    def build_chains_from_all(self, substructure_data):
+        # Find chains from the all sub-chains of 2D chip.
+        chain_dict = self.find_subchains(substructure_data)
+        chain_dict = dict(sorted(chain_dict.items(), key=lambda x: x[0]))
+
+        structure_dict = {}
+        for edge in substructure_data['structure']:
+            structure_dict[(edge[0], edge[1])] = edge[2]
+
+        save_substructure = self.build_chains(chain_dict, structure_dict)
+        return save_substructure
+
+    def build_chains_from_longest(self, substructure_data):
+        # Find chains from the longest chain of 2D chip.
+        chain_dict = self.find_subchains(substructure_data)
+        max_chain = max(chain_dict.keys())
+        if len(chain_dict[max_chain]) > 1:
+            longest_chain_dict = {max_chain: [chain_dict[max_chain][0], chain_dict[max_chain][-1]]}
+        else:
+            longest_chain_dict = {max_chain: chain_dict[max_chain][0:1]}
+
+        structure_dict = {}
+        for edge in substructure_data['structure']:
+            structure_dict[(edge[0], edge[1])] = edge[2]
+
+        save_substructure = self.build_chains(longest_chain_dict, structure_dict)
+        return save_substructure
+
+    def find_subchains(self, substructure_data):
+        # Find all sub-chains in a two-dimensional chip
         G = nx.DiGraph()
         G.add_weighted_edges_from(substructure_data['substructure_dict'][len(substructure_data['qubit_to_int'])][0])
         node_degree = dict(G.degree)
@@ -201,29 +215,25 @@ class BuildLibrary:
                 sorted_chain.append(sorted(chain))
                 chain_dict[len(chain)].append(chain)
 
-        chain_dict = dict(sorted(chain_dict.items(), key=lambda x: x[0]))
-        # longset_chain = chain_dict[max(chain_dict.keys())][0]
+        return chain_dict
 
-        structure_dict = {}
-        for edge in substructure_data['structure']:
-            structure_dict[(edge[0], edge[1])] = edge[2]
-
+    def build_chains(self, chain_dict, structure_dict):
         connected_chain_list = []
         for node_number, chain_nodes_list in chain_dict.items():
             for chain_nodes in chain_nodes_list:
                 chain_graph = nx.DiGraph()
                 directed_weighted_edges = []
-                for i in range(len(chain_nodes)-1):
-                    directed_weighted_edges.append([chain_nodes[i], chain_nodes[i+1],
-                                                    structure_dict[(chain_nodes[i], chain_nodes[i+1])]])
-                    directed_weighted_edges.append([chain_nodes[i+1], chain_nodes[i],
-                                                    structure_dict[(chain_nodes[i+1], chain_nodes[i])]])
+                for i in range(len(chain_nodes) - 1):
+                    directed_weighted_edges.append([chain_nodes[i], chain_nodes[i + 1],
+                                                    structure_dict[(chain_nodes[i], chain_nodes[i + 1])]])
+                    directed_weighted_edges.append([chain_nodes[i + 1], chain_nodes[i],
+                                                    structure_dict[(chain_nodes[i + 1], chain_nodes[i])]])
                 chain_graph.add_weighted_edges_from(directed_weighted_edges)
                 connected_chain_list.append([directed_weighted_edges, chain_graph])
 
         subchain_dict = defaultdict(list)
         for chain in connected_chain_list:
-            for qubits in range(2, len(chain[1].nodes())+1):
+            for qubits in range(2, len(chain[1].nodes()) + 1):
                 sub_graph = self.substructure(chain[0], [chain[1]], qubits)
                 for j in range(len(sub_graph)):
                     log_weight_product = 0
@@ -238,10 +248,18 @@ class BuildLibrary:
             chain_list = [chain[1] for chain in chain_list]
             sorted_subchain_dict[k] = chain_list
 
-        save_substructure = {'calibration_time': self.calibration_time, 'subchain_dict': sorted_subchain_dict}
-        if os.path.exists('LibSubchain_' + self.backend + '.txt'):
-            os.remove('LibSubchain_' + self.backend + '.txt')
-        with open('LibSubchain_' + self.backend + '.txt', 'w') as file:
-            file.write(str(save_substructure))
-        return save_substructure
+        save_subchains = {'calibration_time': self.calibration_time, 'subchain_dict': sorted_subchain_dict}
+
+        dir_path = os.path.dirname(os.path.abspath(__file__))
+        folder_path = os.path.join(dir_path, "backend_library")
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
+        file_name = 'LibSubchain_' + self.backend + '.txt'
+        file_path = os.path.join(folder_path, file_name)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        with open(file_path, 'w') as file:
+            file.write(str(save_subchains))
+
+        return save_subchains
 

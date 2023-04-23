@@ -23,7 +23,7 @@ class CircuitByQulacs(Backend):
     def __init__(self,
                  research: str = "QAOA",
                  is_parallel: bool = None) -> None:
-        """initialize a instance of CircuitByCirq"""
+        """initialize a instance of CircuitByQualacs"""
         super(CircuitByQulacs, self).__init__()
 
         self._p = None

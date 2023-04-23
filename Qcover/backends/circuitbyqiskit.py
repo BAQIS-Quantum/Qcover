@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool, cpu_count
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, assemble, BasicAer, transpile
-from qiskit.aqua import QuantumInstance, aqua_globals
-from qiskit.aqua.operators import PauliExpectation, CircuitSampler, StateFn, CircuitOp, CircuitStateFn, \
+
+from qiskit.utils import QuantumInstance
+from qiskit.opflow import PauliExpectation, CircuitSampler, StateFn, CircuitOp, CircuitStateFn, \
     MatrixExpectation, X, Y, Z, I
 
 from Qcover.utils import get_graph_weights
@@ -138,15 +139,16 @@ class CircuitByQiskit(Backend):
             op = self.get_operator([node_to_qubit[original_e[0]], node_to_qubit[original_e[1]]], len(node_list))
 
         if self._expectation_calc_method == "statevector":
-            circ.save_statevector()
+            # circ.save_statevector()
             sim = Aer.get_backend('qasm_simulator')  #aer
+            circ.save_statevector()
             result = sim.run(circ, seed_simulator=47, nshots=102400).result()
             out_state = result.get_statevector()
             exp_res = np.matmul(np.matmul(out_state.conj().T, op), out_state).real
 
         elif self._expectation_calc_method == "sample":
-            subc = CircuitStateFn(circ)
             backend = Aer.get_backend('qasm_simulator')
+            subc = CircuitStateFn(circ)
             q_instance = QuantumInstance(backend, shots=1024)
             measurable_expression = StateFn(op, is_measurement=True).compose(subc)
             expectation = PauliExpectation().convert(measurable_expression)

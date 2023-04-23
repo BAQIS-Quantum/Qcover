@@ -31,10 +31,6 @@ class Backend(ABC):
         self._pargs = None
         self._element_expectation = dict()
 
-    # @abstractmethod
-    # def get_operator(self, *args):
-    #     pass
-
     @abstractmethod
     def get_expectation(self, *args):
         pass
@@ -44,13 +40,5 @@ class Backend(ABC):
         pass
 
     @abstractmethod
-    def get_result_counts(self, params):
-        pass
-
-    @abstractmethod
     def optimization_visualization(self):
-        pass
-
-    @abstractmethod
-    def sampling_visualization(self, counts):
         pass

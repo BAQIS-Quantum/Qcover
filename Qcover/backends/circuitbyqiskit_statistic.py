@@ -7,8 +7,13 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool, cpu_count
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, assemble, BasicAer, transpile
-from qiskit.aqua import QuantumInstance, aqua_globals
-from qiskit.aqua.operators import PauliExpectation, CircuitSampler, StateFn, CircuitOp, CircuitStateFn, \
+
+# from qiskit.aqua import QuantumInstance, aqua_globals
+# from qiskit.aqua.operators import PauliExpectation, CircuitSampler, StateFn, CircuitOp, CircuitStateFn, \
+#     MatrixExpectation, X, Y, Z, I
+
+from qiskit.utils import QuantumInstance
+from qiskit.opflow import PauliExpectation, CircuitSampler, StateFn, CircuitOp, CircuitStateFn, \
     MatrixExpectation, X, Y, Z, I
 
 from Qcover.utils import get_graph_weights

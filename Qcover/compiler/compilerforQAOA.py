@@ -1,8 +1,5 @@
 import networkx as nx
-# import itertools
-# import numpy as np
 import random
-from qiskit import QuantumCircuit, QuantumRegister
 import math
 from collections import defaultdict
 import copy
@@ -80,8 +77,7 @@ class CompilerForQAOA:
             print("Error: physical qubits must be larger than logical qubits")
 
     def QAOA_logical_circuit(self):
-        lc = QuantumRegister(len(self._nodes), 'l')
-        logical_circ = QuantumCircuit(lc)
+        logical_circ = quafuQC(len(self._nodes))
         graph_edges = dict(
             [(tuple(sorted(list(self._edges)[i][0:2])), list(self._edges)[i][2]) for i in range(0, len(self._edges))])
         graph_nodes = dict(self._nodes)
@@ -89,13 +85,12 @@ class CompilerForQAOA:
         for i in range(len(graph_nodes)):
             logical_circ.h(i)
         for k in range(0, self._p):
-            # logical_circ.barrier()
             for u, v in graph_nodes.items():
-                logical_circ.rz(2 * gamma[k] * v, u)
+                logical_circ.rz(u, 2 * gamma[k] * v)
             for u, v in graph_edges.items():
-                logical_circ.rzz(2 * gamma[k] * v, u[0], u[1])
+                logical_circ.rzz(u[0], u[1], 2 * gamma[k] * v)
             for u, v in graph_nodes.items():
-                logical_circ.rx(2 * beta[k], u)
+                logical_circ.rx(u, 2 * beta[k])
         return logical_circ
 
     def sorted_nodes_degree(self):
@@ -104,9 +99,10 @@ class CompilerForQAOA:
             sort_nodes (np.array): nodes are sorted by node degree in descending order
         """
         node_degree = dict(self._g.degree)
-        sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=True)
+        # sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=True)
+        sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=False)
         sort_nodes = [sort_degree[i][0] for i in range(len(sort_degree))]
-        return sort_nodes
+        return sort_degree
 
     def scheduled_pattern_rzz_swap(self, qubits_mapping):
         """
@@ -168,19 +164,47 @@ class CompilerForQAOA:
         return pattern_rzz_swap, rzz_gates_cycle
 
     def best_initial_mapping(self, rzz_gates_cycle, truncation=5):
+        """
+        # Get the best initial mapping from rzz swap gates template.
+        Args:
+            rzz_gates_cycle (dict): rzz gate execution in k-th cycle, {(q1,q2): k, ...}
+            truncation (int):  # The larger the truncation, the more likely it is to find the
+                                # optimal initial mapping, but the time cost increases.
+        Returns:
+            best_phys2logi_mapping: {physical qubit: logical qubit}
+        """
         simple_mapping = self.simple_layout_mapping()
         sorted_nodes = self.sorted_nodes_degree()
         rzz_gates_cycle = {tuple(sorted(k)): v[0] for k, v in rzz_gates_cycle.items()}
         mapping_logi2phys_list = []
-        # mapping_logi2phys_list.append(({sorted_nodes[0]: 0}, 0))
-        for n in range(len(sorted_nodes)):
-            mapping_logi2phys_list.append(({sorted_nodes[0]: n}, 0))
+        # for n in range(len(sorted_nodes)):
+        #     mapping_logi2phys_list.append(({sorted_nodes[0]: n}, 0))
+
+        # The map is initialized in order for nodes with node degree 0.
+        # TODO: In the future it may be initialized with hardware fidelity.
+        degree_zero_map = {}
+        bit = 0
+        for node in sorted_nodes:
+            if node[1]==0:
+                degree_zero_map[node[0]] = bit
+                bit += 1
+            else:
+                break
+
+        for i in range(0, bit):
+            sorted_nodes.pop(0)
+
+        sorted_nodes_big = sorted(sorted_nodes, key=lambda kv: kv[1], reverse=True)
+        for n in range(0, len(sorted_nodes_big)):
+            init_map = copy.deepcopy(degree_zero_map)
+            init_map[sorted_nodes_big[0][0]] = n + bit
+            mapping_logi2phys_list.append((init_map, 0))
+
+
         last_cycle = max(rzz_gates_cycle.values())
-        # truncation = truncation
-        # The larger the truncation, the more likely it is to find the optimal initial mapping,
-        # but the time cost increases.
-        for item in range(1, len(sorted_nodes)):
-            node = sorted_nodes[item]
+
+        for item in range(1, len(sorted_nodes_big)):
+            node = sorted_nodes_big[item][0]
             update_mapping_list = []
             for mapping_path in mapping_logi2phys_list:
                 q2p_path = mapping_path[0]
@@ -205,11 +229,13 @@ class CompilerForQAOA:
                             else:
                                 if [depth for _, depth in update_mapping_list].count(deepest_cycle) < truncation:
                                     update_mapping_list.append((q2p_path, deepest_cycle))
-            mapping_logi2phys_list = copy.deepcopy(update_mapping_list)
+            if len(update_mapping_list)>1000:
+                update_mapping_list = sorted(update_mapping_list, key=lambda x: x[1], reverse=False)
+                mapping_logi2phys_list = copy.deepcopy(update_mapping_list[0:1000])
+            else:
+                mapping_logi2phys_list = copy.deepcopy(update_mapping_list)
 
         mapping_logi2phys_list = sorted(mapping_logi2phys_list, key=lambda x: x[1])
-        # print(mapping_logi2phys_list[0:50])
-        # print(len(mapping_logi2phys_list))
         if mapping_logi2phys_list:
             best_phys2logi_mapping = {v: k for k, v in mapping_logi2phys_list[0][0].items()}
         else:
@@ -316,19 +342,28 @@ class CompilerForQAOA:
                         u = first_gates_scheduled[i][j][1][0]
                         nodes_weight = first_gates_scheduled[i][j][1][1]
                         u = {v: k for k, v in qubits_mapping_initial.items()}[u]
-                        final_gates_scheduled[depth].append(
-                            ('Rz', (u, 2 * gamma[k] * nodes_weight),
-                             (qubits_mapping_initial[u], 2 * gamma[k] * nodes_weight)))
+                        # final_gates_scheduled[depth].append(
+                        #     ('Rz', (u, 2 * gamma[k] * nodes_weight),
+                        #      (qubits_mapping_initial[u], 2 * gamma[k] * nodes_weight)))
+                        if nodes_weight != 0:
+                            final_gates_scheduled[depth].append(
+                                ('Rz', (u, 2 * gamma[k] * nodes_weight),
+                                 (qubits_mapping_initial[u], 2 * gamma[k] * nodes_weight)))
 
                     if first_gates_scheduled[i][j][0] == 'Rzz':
                         u, v = first_gates_scheduled[i][j][1][0]
                         edges_weight = first_gates_scheduled[i][j][1][1]
                         u = {v: k for k, v in qubits_mapping_initial.items()}[u]
                         v = {v: k for k, v in qubits_mapping_initial.items()}[v]
-                        final_gates_scheduled[depth].append(
-                            ('Rzz', ((u, v), 2 * gamma[k] * edges_weight),
-                             ((qubits_mapping_initial[u], qubits_mapping_initial[v]),
-                              2 * gamma[k] * edges_weight)))
+                        # final_gates_scheduled[depth].append(
+                        #     ('Rzz', ((u, v), 2 * gamma[k] * edges_weight),
+                        #      ((qubits_mapping_initial[u], qubits_mapping_initial[v]),
+                        #       2 * gamma[k] * edges_weight)))
+                        if edges_weight != 0:
+                            final_gates_scheduled[depth].append(
+                                ('Rzz', ((u, v), 2 * gamma[k] * edges_weight),
+                                 ((qubits_mapping_initial[u], qubits_mapping_initial[v]),
+                                  2 * gamma[k] * edges_weight)))
 
                     if first_gates_scheduled[i][j][0] == 'SWAP':
                         u, v = first_gates_scheduled[i][j][1]
@@ -416,7 +451,7 @@ class CompilerForQAOA:
         return final_gates_scheduled, qubits_mapping_initial
 
     def gates_decomposition(self, final_gates_scheduled):
-        # gates decomposition
+        # Decompose RZZ gates and SWAP gates into CNOT and single-qubit gates
         hardware_gates_scheduled = list([])
         for i in range(len(final_gates_scheduled)):
             layer_list = list([])
@@ -468,8 +503,7 @@ class CompilerForQAOA:
 
     def cnot_gates_optimization(self, hardware_gates_scheduled, physical_qubits=None):
         # CNOT gates optimization
-        # Two identical CNOT gates adjacent to each other are eliminated:
-        # CNOT(i,j)CNOT(i,j) = identity matrix
+        # Two identical CNOT gates adjacent to each other are eliminated: CNOT(i,j)CNOT(i,j) = identity matrix
         depth = len(hardware_gates_scheduled)
         opt_hardware_gates_scheduled = copy.deepcopy(hardware_gates_scheduled)
         for i in range(depth - 1):
@@ -483,30 +517,29 @@ class CompilerForQAOA:
         opt_hardware_gates_scheduled = list(filter(None, opt_hardware_gates_scheduled))
 
         if physical_qubits is not None:
-            oq = QuantumRegister(physical_qubits, 'q')
-            optimized_circuit = QuantumCircuit(oq)
+            optimized_circuit = quafuQC(physical_qubits)
             for i in range(len(opt_hardware_gates_scheduled)):
                 for j in range(len(opt_hardware_gates_scheduled[i])):
                     if opt_hardware_gates_scheduled[i][j][0] == 'H':
                         optimized_circuit.h(opt_hardware_gates_scheduled[i][j][1])
                     if opt_hardware_gates_scheduled[i][j][0] == 'Rz':
                         _, v, theta = opt_hardware_gates_scheduled[i][j]
-                        optimized_circuit.rz(theta, v)
+                        optimized_circuit.rz(v, theta)
                     if opt_hardware_gates_scheduled[i][j][0] == 'Rx':
                         _, v, theta = opt_hardware_gates_scheduled[i][j]
-                        optimized_circuit.rx(theta, v)
+                        optimized_circuit.rx(v, theta)
                     if opt_hardware_gates_scheduled[i][j][0] == 'CNOT':
                         _, q = opt_hardware_gates_scheduled[i][j]
-                        optimized_circuit.cx(q[0], q[1])
+                        optimized_circuit.cnot(q[0], q[1])
         else:
             optimized_circuit = None
         return opt_hardware_gates_scheduled, optimized_circuit
 
     def graph_to_qasm(self):
+        # Convert weight graph to openqasm circuit.
         qubits_mapping = self.simple_layout_mapping()
         pattern_rzz_swap, rzz_gates_cycle = self.scheduled_pattern_rzz_swap(qubits_mapping)
         best_phys2logi_mapping = self.best_initial_mapping(rzz_gates_cycle)
-        print('best',best_phys2logi_mapping)
         pattern_rzz_swap_new = defaultdict(list)
         for k, v in pattern_rzz_swap.items():
             for gate in v:
@@ -518,16 +551,16 @@ class CompilerForQAOA:
         hardware_gates_scheduled = self.gates_decomposition(final_gates_scheduled)
         opt_hardware_gates_scheduled, ScQ_circuit = self.cnot_gates_optimization(
             hardware_gates_scheduled, physical_qubits=self._physical_qubits)
-        ScQ_circuit.measure_all()
-        openqasm = ScQ_circuit.qasm()
+        # ScQ_circuit.measure_all()
+        openqasm = ScQ_circuit.to_openqasm()
         return openqasm, final_phys2logi_mapping, ScQ_circuit
 
     def scq_qasm(self, openqasm):
+        # Compile openqasm into scq_qasm executed by quafu quantum chips.
         user = User()
         user.save_apitoken(self._apitoken)
         backend = self._cloud_backend
         task = Task()
-        # task.load_account()
         task.config(backend=backend)
         backend_info = task.get_backend_info()
         plt.close()
@@ -535,13 +568,21 @@ class CompilerForQAOA:
         logical_qubits = int(re.findall(r"\d+\.?\d*", openqasm.split('qreg')[1].split(';')[0])[0])
 
         build_library = BuildLibrary(backend=backend, fidelity_threshold=96)
-        if not os.path.exists('LibSubstructure_' + backend + '.txt'):
+
+        dir_path = os.path.dirname(os.path.abspath(__file__))
+        folder_path = os.path.join(dir_path, "backend_library")
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
+
+        file_path = os.path.join(folder_path, 'LibSubstructure_' + backend + '.txt')
+
+        if not os.path.exists(file_path):
             print(
                 "The subgraph library of " + backend + " quantum chip does not exist. Please wait: creating subgraph library!")
             substructure_data = build_library.build_substructure_library()
             print('Complete building!')
         else:
-            with open('LibSubstructure_' + backend + '.txt', 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 substructure_data = eval(f.read())
                 if substructure_data['calibration_time'] != calibration_time:
                     print(
@@ -557,17 +598,20 @@ class CompilerForQAOA:
                                     'qreg q[' + str(physical_qubits))
 
         if backend == "ScQ-P136":
-            scq_qasm = re.sub(r'barrier.*\n', "", scq_qasm)
-            if not os.path.exists('LibSubchain_' + backend + '.txt'):
-                print("The one-dimensional chain library of " + backend + " quantum chip does not exist, and is being created!")
-                chain_data = build_library.chain_library_2D(substructure_data)
+            # scq_qasm = re.sub(r'barrier.*\n', "", scq_qasm)
+            file_path = os.path.join(folder_path, 'LibSubchain_' + backend + '.txt')
+            if not os.path.exists(file_path):
+                print(
+                    "The one-dimensional chain library of " + backend + " quantum chip does not exist, and is being created!")
+                chain_data = build_library.build_chains_from_longest(substructure_data)
                 print('Complete building!')
             else:
-                with open('LibSubchain_' + backend + '.txt', 'r', encoding='utf-8') as f:
+                with open(file_path, 'r', encoding='utf-8') as f:
                     chain_data = eval(f.read())
                     if chain_data['calibration_time'] != calibration_time:
-                        print("Waiting: Building a library of one-dimensional chain structures for the " + backend + " quantum chip!")
-                        chain_data = build_library.chain_library_2D(substructure_data)
+                        print(
+                            "Waiting: Building a library of one-dimensional chain structures for the " + backend + " quantum chip!")
+                        chain_data = build_library.build_chains_from_longest(substructure_data)
                         print('Complete building!')
 
             longset_chain = max(chain_data['subchain_dict'].keys())
@@ -617,12 +661,41 @@ class CompilerForQAOA:
                     qubits_list.append(coupling[1])
             qubits_list = sorted(qubits_list)
 
-        print('physical qubits used:\n', qubits_list)
+        print('Physical qubits used:\n', qubits_list)
 
+        # req_to_q = {q: qubits_list[q] for q in range(len(qubits_list))}
+        # for req, q in sorted(req_to_q.items(), key=lambda item: item[1], reverse=True):
+        #     print('req, q',req, q)
+        #     scq_qasm = scq_qasm.replace('q[' + str(req) + ']', 'q[' + str(q) + ']')
+        # scq_qasm = scq_qasm.replace('meas[', 'c[')
+        # plt.close()
+        # print('scq_qasm \n',scq_qasm)
+
+        # lines = scq_qasm.split('\n')
+        # print('oldlines', lines)
+        old_qubits = []
+        new_qubits = []
         req_to_q = {q: qubits_list[q] for q in range(len(qubits_list))}
         for req, q in sorted(req_to_q.items(), key=lambda item: item[1], reverse=True):
-            scq_qasm = scq_qasm.replace('q[' + str(req) + ']', 'q[' + str(q) + ']')
+            old_qubits.append(req)
+            new_qubits.append(q)
+        old_qubit_pattern = r'q\[(\d+)\]'
+        new_qubit_template = r'q[{}]'
+
+        # Put the 'q[int]' number in a capturing group and replace with the contents of the capturing group
+        def replace_qubits(match):
+            old_qubit = int(match.group(1))
+            if old_qubit in old_qubits:
+                new_qubit = new_qubits[old_qubits.index(old_qubit)]
+                return new_qubit_template.format(new_qubit)
+            else:
+                return match.group(0)
+
+        # Replace the 'q[int]' number in the string with a new number
+        scq_qasm = re.sub(old_qubit_pattern, replace_qubits, scq_qasm)
         scq_qasm = scq_qasm.replace('meas[', 'c[')
+        # lines = scq_qasm.split('\n')
+        # print('newlines', lines)
         plt.close()
         return scq_qasm
 
@@ -640,15 +713,18 @@ class CompilerForQAOA:
         Returns:
             task_id (str): The ID number of the task, which can uniquely identify the task.
         """
-        openqasm, final_phys2logi_mapping, _ = self.graph_to_qasm()
+        openqasm, final_phys2logi_mapping, ScQ_circuit = self.graph_to_qasm()
+        print('The depth of compiled circuit: ', len(ScQ_circuit.layered_circuit()[0]))
+        print('The number of CNOT gates: ', openqasm.count('cx'))
+        print('The number of single-qubit gates (Rx,Rz,H): ', openqasm.count('h') +
+              openqasm.count('rx') + openqasm.count('rz'))
         self._logi2phys_mapping = {v: k for k, v in final_phys2logi_mapping.items()}
         scq_qasm = self.scq_qasm(openqasm)
-        # send to quafu cloud
+        # Send to quafu cloud
         qubits = int(re.findall(r"\d+\.?\d*", scq_qasm.split('qreg')[1].split(';')[0])[0])
         q = quafuQC(qubits)
         q.from_openqasm(scq_qasm)
         task = Task()
-        # task.load_account()
         task.config(backend=self._cloud_backend, shots=shots, compile=False)
         task_id = task.send(q, wait=wait, name=task_name, group=task_name).taskid
         print("The task has been submitted to the quafu cloud platform.\nThe task ID is '%s'" % task_id)
@@ -656,11 +732,10 @@ class CompilerForQAOA:
 
     def task_status_query(self, task_id: str):
         task = Task()
-        # task.load_account()
         task_status = task.retrieve(task_id).task_status
-        if task_status=='In Queue' or task_status=='Running':
+        if task_status == 'In Queue' or task_status == 'Running':
             print("The current task status is '%s', please wait." % task_status)
-        elif task_status=='Completed':
+        elif task_status == 'Completed':
             print("The task execution has completed and the result has been returned.")
             res = task.retrieve(task_id)
             return res
@@ -693,18 +768,17 @@ class CompilerForQAOA:
         for i in range(len(counts)):
             # 0 -> -1, 1 -> 1
             result1 = [int(u) for u in list(counts[i][0])]
-            # result1.reverse()
             energy1 = 0
             for node in self._nodes:
                 energy1 = energy1 + node[1] * (2 * result1[node[0]] - 1)
             for edge in self._edges:
-                energy1 = energy1 + 2* edge[2] * (2 * result1[edge[0]] - 1) * (2 * result1[edge[1]] - 1)
+                energy1 = energy1 + 2 * edge[2] * (2 * result1[edge[0]] - 1) * (2 * result1[edge[1]] - 1)
             counts_energy[counts[i]] = energy1
         counts_energy = sorted(counts_energy.items(), key=lambda x: x[1])
         return counts_energy
 
     def graph_sampling_energy_qubo(self, counts):
-        # Obtain QUBO cost from circuit sampling results
+        # Obtain QUBO cost from circuit sampling results.
         counts_energy = {}
         import numpy as np
         qubo_mat = np.zeros([len(self._nodes), len(self._nodes)])
@@ -712,20 +786,21 @@ class CompilerForQAOA:
         for edge in self._edges:
             ising_mat[edge[0], edge[1]] = edge[2]
             ising_mat[edge[1], edge[0]] = edge[2]
-            qubo_mat[edge[0], edge[1]] = 4*edge[2]/2.
-            qubo_mat[edge[1], edge[0]] = 4*edge[2]/2.
+            qubo_mat[edge[0], edge[1]] = 4 * edge[2] / 2.
+            qubo_mat[edge[1], edge[0]] = 4 * edge[2] / 2.
         for node in self._nodes:
-            ising_mat[node[0],node[0]] = node[1]
-            qubo_mat[node[0],node[0]] = (node[1]-sum(2.*qubo_mat[node[0]]/4.))*2
+            ising_mat[node[0], node[0]] = node[1]
+            qubo_mat[node[0], node[0]] = (node[1] - sum(2. * qubo_mat[node[0]] / 4.)) * 2
         for i in range(len(counts)):
             result1 = np.array([int(u) for u in list(counts[i][0])])
             energy1 = np.dot(np.dot(result1, qubo_mat), result1)
             counts_energy[counts[i]] = energy1
         counts_energy = sorted(counts_energy.items(), key=lambda x: x[1])
-        # print('qubo_mat',qubo_mat)
         return counts_energy
 
     def results_processing(self, results):
+        # The sampling result is the distribution of hardware physical qubit strings,
+        # and the physical qubits need to be mapped back to the weight graph nodes.
         counts_ScQ0 = results.res
         logi2phys_mapping = self._logi2phys_mapping
         counts_ScQ_new = self.left_right_counts_rearrange(logi2phys_mapping, counts_ScQ0)
@@ -741,10 +816,18 @@ class CompilerForQAOA:
         return counts_energy
 
     def visualization(self, counts_energy, problem='MaxCut', solutions=3, problem_graph=None):
-        # draw result
+        """
+            Visualize optimal solutions to combinatorial optimization problems
+            based on sampling results from quafu hardware.
+        Args:
+            counts_energy: self.results_processing()
+            problem: Visualization of two types of problems is currently supported, 'MaxCut' or 'GraphColoring'
+            solutions: Visualize the top "solutions" optimal solutions
+            problem_graph: original problem graph
+        """
         plt.close()
         print('Send results to client:')
-        if problem=='MaxCut':
+        if problem == 'MaxCut':
             for s in range(solutions):
                 optimal_solution = counts_energy[s][0][0]
                 cut_node1 = []
@@ -756,28 +839,30 @@ class CompilerForQAOA:
                         cut_node2.append(i)
                 pos = nx.spring_layout(self._g)
                 # pos = nx.circular_layout(self._g)
-                nx.draw_networkx(self._g, pos=pos, nodelist=cut_node1, node_size=500, node_color='c', font_size=15, width=2)
-                nx.draw_networkx(self._g, pos=pos, nodelist=cut_node2, node_size=500, node_color='r', font_size=15, width=2)
+                nx.draw_networkx(self._g, pos=pos, nodelist=cut_node1, node_size=500, node_color='c', font_size=15,
+                                 width=2)
+                nx.draw_networkx(self._g, pos=pos, nodelist=cut_node2, node_size=500, node_color='r', font_size=15,
+                                 width=2)
                 nx.draw_networkx_edges(self._g, pos, width=2, edge_color='g', arrows=False)
                 # plt.axis('off')
                 plt.tight_layout()
                 plt.show()
-                print('======== Solution ' + str(1+s) + ' ========')
+                print('======== Solution ' + str(1 + s) + ' ========')
                 print('Cluster 1:', sorted(cut_node1))
                 print('Cluster 2:', sorted(cut_node2))
                 print('Cost (QUBO):', counts_energy[s][1])
-        elif problem=='GraphColoring':
+        elif problem == 'GraphColoring':
             import matplotlib.colors
             color_list = ['r', 'c', 'b', 'y', 'm']
             color_list = color_list + list(matplotlib.colors.cnames.values())
             nodes = len(problem_graph.nodes)
-            color_num = int(len(counts_energy[0][0][0])/nodes)
+            color_num = int(len(counts_energy[0][0][0]) / nodes)
             for s in range(solutions):
                 print('======== Solution ' + str(1 + s) + ' ========')
                 optimal_solution = counts_energy[s][0][0]
                 qubo_bits = []
                 for n in range(0, nodes):
-                    qubo_bits.append(optimal_solution[n*color_num:(n+1)*color_num])
+                    qubo_bits.append(optimal_solution[n * color_num:(n + 1) * color_num])
                 color_dic = {}
                 for k in range(nodes):
                     color_dic.setdefault(qubo_bits[k], []).append(k)
@@ -785,9 +870,10 @@ class CompilerForQAOA:
                 # pos = nx.circular_layout(self._g)
                 color = 0
                 for bit, node_list in color_dic.items():
-                    nx.draw_networkx(problem_graph, pos=pos, nodelist=node_list, node_size=500, node_color=color_list[color], font_size=15, width=2)
+                    nx.draw_networkx(problem_graph, pos=pos, nodelist=node_list, node_size=500,
+                                     node_color=color_list[color], font_size=15, width=2)
                     color = color + 1
-                    print('Coloring ' + str(color)+ ':', sorted(node_list))
+                    print('Coloring ' + str(color) + ':', sorted(node_list))
                 nx.draw_networkx_edges(problem_graph, pos, width=2, edge_color='g', arrows=False)
                 # plt.axis('off')
                 plt.tight_layout()
