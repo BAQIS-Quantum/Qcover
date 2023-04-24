@@ -21,7 +21,7 @@ class CompilerForQAOA:
         optimal_params (list): Optimal parameters of QAOA circuit calculated by Qcover.
         apitoken (str): API token of your quafu account,
                         you can get it on the quafu quantum computing cloud platform (http://quafu.baqis.ac.cn/).
-        cloud_backend (str): Currently you can choose from three quantum chips: 'ScQ-P10', 'ScQ-P20', 'ScQ-P50'
+        cloud_backend (str): Currently you can choose from three quantum chips: 'ScQ-P10', 'ScQ-P18', 'ScQ-P136'
     """
 
     def __init__(self,
@@ -101,7 +101,7 @@ class CompilerForQAOA:
         node_degree = dict(self._g.degree)
         # sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=True)
         sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=False)
-        sort_nodes = [sort_degree[i][0] for i in range(len(sort_degree))]
+        # sort_nodes = [sort_degree[i][0] for i in range(len(sort_degree))]
         return sort_degree
 
     def scheduled_pattern_rzz_swap(self, qubits_mapping):
@@ -177,8 +177,6 @@ class CompilerForQAOA:
         sorted_nodes = self.sorted_nodes_degree()
         rzz_gates_cycle = {tuple(sorted(k)): v[0] for k, v in rzz_gates_cycle.items()}
         mapping_logi2phys_list = []
-        # for n in range(len(sorted_nodes)):
-        #     mapping_logi2phys_list.append(({sorted_nodes[0]: n}, 0))
 
         # The map is initialized in order for nodes with node degree 0.
         # TODO: In the future it may be initialized with hardware fidelity.
@@ -199,7 +197,6 @@ class CompilerForQAOA:
             init_map = copy.deepcopy(degree_zero_map)
             init_map[sorted_nodes_big[0][0]] = n + bit
             mapping_logi2phys_list.append((init_map, 0))
-
 
         last_cycle = max(rzz_gates_cycle.values())
 
@@ -342,9 +339,6 @@ class CompilerForQAOA:
                         u = first_gates_scheduled[i][j][1][0]
                         nodes_weight = first_gates_scheduled[i][j][1][1]
                         u = {v: k for k, v in qubits_mapping_initial.items()}[u]
-                        # final_gates_scheduled[depth].append(
-                        #     ('Rz', (u, 2 * gamma[k] * nodes_weight),
-                        #      (qubits_mapping_initial[u], 2 * gamma[k] * nodes_weight)))
                         if nodes_weight != 0:
                             final_gates_scheduled[depth].append(
                                 ('Rz', (u, 2 * gamma[k] * nodes_weight),
@@ -355,10 +349,6 @@ class CompilerForQAOA:
                         edges_weight = first_gates_scheduled[i][j][1][1]
                         u = {v: k for k, v in qubits_mapping_initial.items()}[u]
                         v = {v: k for k, v in qubits_mapping_initial.items()}[v]
-                        # final_gates_scheduled[depth].append(
-                        #     ('Rzz', ((u, v), 2 * gamma[k] * edges_weight),
-                        #      ((qubits_mapping_initial[u], qubits_mapping_initial[v]),
-                        #       2 * gamma[k] * edges_weight)))
                         if edges_weight != 0:
                             final_gates_scheduled[depth].append(
                                 ('Rzz', ((u, v), 2 * gamma[k] * edges_weight),
@@ -663,16 +653,6 @@ class CompilerForQAOA:
 
         print('Physical qubits used:\n', qubits_list)
 
-        # req_to_q = {q: qubits_list[q] for q in range(len(qubits_list))}
-        # for req, q in sorted(req_to_q.items(), key=lambda item: item[1], reverse=True):
-        #     print('req, q',req, q)
-        #     scq_qasm = scq_qasm.replace('q[' + str(req) + ']', 'q[' + str(q) + ']')
-        # scq_qasm = scq_qasm.replace('meas[', 'c[')
-        # plt.close()
-        # print('scq_qasm \n',scq_qasm)
-
-        # lines = scq_qasm.split('\n')
-        # print('oldlines', lines)
         old_qubits = []
         new_qubits = []
         req_to_q = {q: qubits_list[q] for q in range(len(qubits_list))}
@@ -694,12 +674,10 @@ class CompilerForQAOA:
         # Replace the 'q[int]' number in the string with a new number
         scq_qasm = re.sub(old_qubit_pattern, replace_qubits, scq_qasm)
         scq_qasm = scq_qasm.replace('meas[', 'c[')
-        # lines = scq_qasm.split('\n')
-        # print('newlines', lines)
         plt.close()
         return scq_qasm
 
-    def send(self, wait=True, shots=1024, task_name: str = ''):
+    def send(self, wait=True, shots=1024, task_name: str = '', priority: int=2):
         """
         Send the task to the quafu cloud platform.
         Args:
@@ -710,6 +688,8 @@ class CompilerForQAOA:
             shots (int): The number of sampling of quantum computer.
             task_name (str): The name of the task so that you can query the task status
                              on the quafu cloud platform later.
+            priority (int): Task priority. The default is 2 for ordinary users,
+                            and the highest permission for advanced users is 3.
         Returns:
             task_id (str): The ID number of the task, which can uniquely identify the task.
         """
@@ -725,7 +705,7 @@ class CompilerForQAOA:
         q = quafuQC(qubits)
         q.from_openqasm(scq_qasm)
         task = Task()
-        task.config(backend=self._cloud_backend, shots=shots, compile=False)
+        task.config(backend=self._cloud_backend, shots=shots, compile=False, priority=priority)
         task_id = task.send(q, wait=wait, name=task_name, group=task_name).taskid
         print("The task has been submitted to the quafu cloud platform.\nThe task ID is '%s'" % task_id)
         return task_id
