@@ -163,6 +163,9 @@ cython_debug/
 
 .ipynb_checkpoints/
 
+# VSCode
+.vscode/
+
 ### Files not published temporarily ###
 solver/
 source code/backends/circuitbyquafu.py
