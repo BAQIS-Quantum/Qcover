@@ -168,4 +168,4 @@ cython_debug/
 
 ### Files not published temporarily ###
 solver/
-source code/backends/circuitbyquafu.py
+Qcover/backends/circuitbyquafu.py
