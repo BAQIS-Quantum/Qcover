@@ -186,12 +186,12 @@ if __name__ == '__main__':
     # nodes = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
     # edges = [(0, 1, -1), (1, 2, -1), (2, 3, -1), (3, 4, -1)]
 
-    for nd in nodes:
-        u, w = nd[0], nd[1]
-        g.add_node(int(u), weight=int(w))
-    for ed in edges:
-        u, v, w = ed[0], ed[1], ed[2]
-        g.add_edge(int(u), int(v), weight=int(w))
+    # for nd in nodes:
+    #     u, w = nd[0], nd[1]
+    #     g.add_node(int(u), weight=int(w))
+    # for ed in edges:
+    #     u, v, w = ed[0], ed[1], ed[2]
+    #     g.add_edge(int(u), int(v), weight=int(w))
 
     # node_num = 10
     # for nd in range(node_num):
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     #     if nd < node_num - 1:
     #         g.add_edge(nd, nd + 1, weight=-1)
 
-    #Ising test
+    # Ising test
     # g.add_node(0, weight=0)
     # for i in range(1, 30):
     #     g.add_node(i, weight=0)
@@ -209,8 +209,8 @@ if __name__ == '__main__':
     # from Qcover.applications import MaxCut
     # mxt = MaxCut(g)
     # mxt = MaxCut(node_num=20, node_degree=3)
-    #10 3 0.035  100 3 0.029
-    #10 6 0.028  100 6 134.56/ce
+    # 10 3 0.035  100 3 0.029
+    # 10 6 0.028  100 6 134.56/ce
     # g, shift = mxt.run()
 
     from Qcover.optimizers import GradientDescent, SPSA, Interp, SHGO
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     # optg = GradientDescent(options={'maxiter':300, 'learning_rate':0.05, 'tol':1e-6})
     # opti = Interp(optimize_method="COBYLA", options={'tol': 1e-8, 'disp': False})
     # opta = SPSA(options={'maxiter':300, 'tol':1e-6})
-    optc = COBYLA(options={'tol': 1e-3, 'disp': True})
+    optc = COBYLA(options={'tol': 1e-7, 'disp': True})
     # opts = SHGO(options={'minimizer_kwargs':{'method':'SLSQP', 'options':{'ftol': 1e-12}}, 'sampling_method':'sobol'})
     qiskit_bc = CircuitByQiskit(expectation_calc_method="statevector")
     from Qcover.backends import CircuitByQton, CircuitByQulacs, CircuitByProjectq, CircuitByTensor, CircuitByCirq
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     # test RQAOA
     # import matplotlib.pyplot as plt
     # from Qcover.applications import MaxCut
-    #
+    
     # p = 1
     # node_num = [10, 50, 100, 500, 1000]
     # node_d = [3, 4, 5, 6]
@@ -260,17 +260,17 @@ if __name__ == '__main__':
     #         print("----------------------------------------------")
     #         mxt = MaxCut(node_num=i, node_degree=nd)
     #         g, shift = mxt.run()
-    #
+    
     #         g_exp = g.copy()
     #         qc_exp = Qcover(g_exp, p,
     #                     optimizer=COBYLA(options={'tol': 1e-3, 'disp': True}),
     #                     backend=CircuitByQiskit(expectation_calc_method="statevector"))  # qt, ,qulacs_bc
-    #
+    
     #         st = time.time()
     #         sol_exp, sexp_exp = qc_exp.run(mode='RQAQA', node_threshold=1, iter_time=3, corr_method='expectation')
     #         ed = time.time()
     #         t1 = ed - st
-    #
+    
     #         g_g = g.copy()
     #         qc_g = Qcover(g_g, p,
     #                     optimizer=COBYLA(options={'tol': 1e-3, 'disp': True}),
@@ -279,7 +279,7 @@ if __name__ == '__main__':
     #         sol_g, sexp_g = qc_g.run(mode='RQAQA', node_threshold=1, iter_time=3, corr_method='g')
     #         ed = time.time()
     #         t2 = ed - st
-    #
+    
     #         exp_e, exp_g = 0, 0
     #         for (x, y) in g.nodes.data('weight', default=0):
     #             exp_e += y * (sol_exp[x] * 2 - 1)
@@ -287,13 +287,13 @@ if __name__ == '__main__':
     #         for (u, v, c) in g.edges.data('weight', default=0):
     #             exp_e += c * (sol_exp[u] * 2 - 1) * (sol_exp[v] * 2 - 1)
     #             exp_g += c * (sol_g[u] * 2 - 1) * (sol_g[v] * 2 - 1)
-    #
+    
     #         et.append(t1)
     #         gt.append(t2)
-    #
+    
     #         ev.append(exp_e)
     #         gv.append(exp_g)
-    #
+    
     #         plt.figure(0)
     #         plt.plot(range(len(sexp_exp)), sexp_exp, "ob-", label="origin")
     #         plt.plot(range(len(sexp_g)), sexp_g, "^r-", label="correlation")

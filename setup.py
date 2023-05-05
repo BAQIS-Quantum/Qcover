@@ -24,7 +24,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 # This reads the __version__ variable from Qcover/version.py
 __version__ = ""
-exec(open('Qcover/version.py').read())
+exec(open('source code/version.py').read())
 
 requirements = [
     "qiskit>=0.33.0",
