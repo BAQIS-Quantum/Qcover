@@ -143,7 +143,10 @@ When using Qcover for research projects, please cite
 
 - Wei-Feng Zhuang, Ya-Nan Pu, Hong-Ze Xu, Xudan Chai, Yanwu Gu, Yunheng Ma, Shahid Qamar, 
 Chen Qian, Peng Qian, Xiao Xiao, Meng-Jun Hu, and Done E. Liu, "Efficient Classical
-Computation of Quantum Mean Value for Shallow QAOA Circuits", arXiv:2112.11151 (2021). 
+Computation of Quantum Mean Value for Shallow QAOA Circuits", arXiv:2112.11151 (2021).
+
+
+- BAQIS Quafu Group, "Quafu-Qcover: Explore Combinatorial Optimization Problems on Cloud-based Quantum Computers", arXiv:2305.17979 (2023).
 
 
 # Authors
