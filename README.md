@@ -126,7 +126,7 @@ for example, if you want to using Qcover to solve a max-cut problem, just coding
     quafu_solver = qcover_compiler.task_status_query(task_id)
     if quafu_solver:
         counts_energy = qcover_compiler.results_processing(quafu_solver)
-        qcover_compiler.visualization(counts_energy)
+        qcover_compiler.visualization(counts_energy, problem='MaxCut', solutions=3)
     ```
 
 The results obtained by running this example code are shown in the following two figures
