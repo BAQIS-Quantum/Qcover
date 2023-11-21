@@ -21,7 +21,7 @@ class CompilerForQAOA:
         optimal_params (list): Optimal parameters of QAOA circuit calculated by Qcover.
         apitoken (str): API token of your quafu account,
                         you can get it on the quafu quantum computing cloud platform (http://quafu.baqis.ac.cn/).
-        cloud_backend (str): Currently you can choose from three quantum chips: 'ScQ-P10', 'ScQ-P18', 'ScQ-P136'
+        cloud_backend (str): Currently you can choose from three quantum chips: 'ScQ-P10', 'ScQ-P20', 'ScQ-P50'
     """
 
     def __init__(self,
@@ -99,9 +99,7 @@ class CompilerForQAOA:
             sort_nodes (np.array): nodes are sorted by node degree in descending order
         """
         node_degree = dict(self._g.degree)
-        # sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=True)
         sort_degree = sorted(node_degree.items(), key=lambda kv: kv[1], reverse=False)
-        # sort_nodes = [sort_degree[i][0] for i in range(len(sort_degree))]
         return sort_degree
 
     def scheduled_pattern_rzz_swap(self, qubits_mapping):
@@ -197,6 +195,7 @@ class CompilerForQAOA:
             init_map = copy.deepcopy(degree_zero_map)
             init_map[sorted_nodes_big[0][0]] = n + bit
             mapping_logi2phys_list.append((init_map, 0))
+
 
         last_cycle = max(rzz_gates_cycle.values())
 
@@ -541,7 +540,7 @@ class CompilerForQAOA:
         hardware_gates_scheduled = self.gates_decomposition(final_gates_scheduled)
         opt_hardware_gates_scheduled, ScQ_circuit = self.cnot_gates_optimization(
             hardware_gates_scheduled, physical_qubits=self._physical_qubits)
-        # ScQ_circuit.measure_all()
+        ScQ_circuit.measure([i for i in range(ScQ_circuit.num)], [i for i in range(ScQ_circuit.num)])
         openqasm = ScQ_circuit.to_openqasm()
         return openqasm, final_phys2logi_mapping, ScQ_circuit
 
@@ -553,6 +552,7 @@ class CompilerForQAOA:
         task = Task()
         task.config(backend=backend)
         backend_info = task.get_backend_info()
+
         plt.close()
         calibration_time = backend_info['full_info']["calibration_time"]
         logical_qubits = int(re.findall(r"\d+\.?\d*", openqasm.split('qreg')[1].split(';')[0])[0])
@@ -677,7 +677,7 @@ class CompilerForQAOA:
         plt.close()
         return scq_qasm
 
-    def send(self, wait=True, shots=1024, task_name: str = '', priority: int=2):
+    def send(self, wait=True, shots=1024, task_name: str = '', priority: int = 2):
         """
         Send the task to the quafu cloud platform.
         Args:
@@ -688,8 +688,6 @@ class CompilerForQAOA:
             shots (int): The number of sampling of quantum computer.
             task_name (str): The name of the task so that you can query the task status
                              on the quafu cloud platform later.
-            priority (int): Task priority. The default is 2 for ordinary users,
-                            and the highest permission for advanced users is 3.
         Returns:
             task_id (str): The ID number of the task, which can uniquely identify the task.
         """
@@ -705,7 +703,9 @@ class CompilerForQAOA:
         q = quafuQC(qubits)
         q.from_openqasm(scq_qasm)
         task = Task()
+        print(scq_qasm)
         task.config(backend=self._cloud_backend, shots=shots, compile=False, priority=priority)
+        # res = task.send(q, wait=wait, name=task_name, group=task_name)
         task_id = task.send(q, wait=wait, name=task_name, group=task_name).taskid
         print("The task has been submitted to the quafu cloud platform.\nThe task ID is '%s'" % task_id)
         return task_id
