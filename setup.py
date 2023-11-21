@@ -32,7 +32,7 @@ requirements = [
     "cirq>=0.13.0",
     "quimb>=1.3.0",
     "qulacs>=0.3.0",
-    "pyquafu>=0.2.11"
+    "pyquafu>=0.3.6"
 ]
 
 setup(
