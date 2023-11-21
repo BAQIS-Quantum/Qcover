@@ -1,4 +1,3 @@
-import json
 import networkx as nx
 from queue import PriorityQueue
 import matplotlib.pyplot as plt
@@ -10,7 +9,7 @@ from quafu import Task
 
 
 class BuildLibrary:
-    def __init__(self, backend='ScQ-P10', fidelity_threshold=95):
+    def __init__(self, backend='ScQ-P10', fidelity_threshold=0.95):
         self.backend = backend
         self.fidelity_threshold = fidelity_threshold
         task = Task()
@@ -85,6 +84,7 @@ class BuildLibrary:
                     sorted_edges = sorted(cg.edges(data=True), key=lambda x: x[2]['weight'], reverse=True)
                     for elem in sorted_edges:
                         if elem[2]['weight'] > self.fidelity_threshold:
+                            print(elem, self.fidelity_threshold)
                             neighbors = PriorityQueue()
                             neighbors.put((-1, elem[0]))
                             ret_nodes = []
@@ -115,7 +115,7 @@ class BuildLibrary:
                                 substructure_nodes.append(sorted(ret_nodes))
                                 all_substructure.append([log_weight_product, out])
 
-            self.fidelity_threshold = self.fidelity_threshold - 1
+            self.fidelity_threshold = self.fidelity_threshold - 0.01
         all_substructure = sorted(all_substructure, key=lambda x: x[0], reverse=True)
         return all_substructure
 
